@@ -15,7 +15,7 @@
     <div class="footer">
       <div class="button-bar">
         <button id="backBtn" class="secondary">Back</button>
-        <button id="nextBtn" class="primary">Next_test</button>
+        <button id="nextBtn" class="primary">Next</button>
       </div>
     </div>
   </div>
@@ -24,29 +24,30 @@
     document.addEventListener("DOMContentLoaded", function () {
       const params = parseParams();
 
-      // Look ahead to the *next* trial to decide the message
-      const nextParams = { ...params, i: String((parseInt(params.i || "0", 10) || 0) + 1) };
+      // Look ahead to the NEXT trial to decide the message and numbering
+      const nextIndex = (parseInt(params.i || "0", 10) || 0) + 1;
+      const nextParams = { ...params, i: String(nextIndex) };
       const nextWrap = getCurrentTrialInfo(nextParams);
       const nxt = nextWrap && nextWrap.info;
 
-      let msgHtml = "";
+      let messageHtml = "";
       if (!nxt) {
-        msgHtml = `<p>You are about to finish.</p>`;
+        // Normally unreachable (drawing → end if last trial), but keep a safe fallback.
+        messageHtml = `<p>You are about to finish.</p>`;
       } else if (isStartOfBlock(nxt)) {
-        msgHtml = `<p>Please enjoy a short break.</p>`;
+        messageHtml = `<p>Please enjoy a short break.</p>`;
       } else {
-        const nextX = nxt.trialInBlock + 1;
-        const nextY = nxt.trialsInBlock;
-        msgHtml = `<p>You will soon begin trial ${nextX} of ${nextY}.</p>`;
+        const X = nxt.trialInBlock + 1;           // upcoming trial number within its block
+        const Y = nxt.trialsInBlock;              // total trials in that block
+        messageHtml = `<p>You will soon begin trial ${X} of ${Y}.</p>`;
       }
 
-      const root = document.getElementById("root");
-      root.innerHTML = `
+      document.getElementById("root").innerHTML = `
         <div class="wait-wrap"><h1>WAIT</h1></div>
-        ${msgHtml}
+        ${messageHtml}
       `;
 
-      // Inline handlers (works even if app.js doesn't bind these for wait)
+      // Nav
       document.getElementById("backBtn").addEventListener("click", function () {
         const r = backRoute("wait", params);
         goto(r.page, r.params);
@@ -56,9 +57,10 @@
         goto(r.page, r.params);
       });
 
-      // Hide back in Experiment mode; visible in Dev
+      // Hide Back in experiment mode; show in dev mode
       setupNavVisibility(params, { allowBack: false });
 
+      // Dev footer (no Firebase event here)
       renderDevFooter(params, "");
     });
   </script>
