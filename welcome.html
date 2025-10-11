@@ -18,5 +18,40 @@
       </div>
     </div>
   </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const params = parseParams();
+      const payload = placeholderPayload(params);
+      const name = params.n ? ", " + (typeof esc === "function" ? esc(params.n) : params.n) : "";
+      const inner = document.getElementById("welcomeInner");
+
+      inner.innerHTML = `
+        <h1>Welcome back to The Vision Experiment${name}</h1>
+        <div class="kv" style="margin-top:10px;">
+          <b>Block</b><span>${payload.blockNum}</span>
+          <b>Trial</b><span>${payload.trialText}</span>
+          <b>Trial type</b><span>${payload.typeLabel}</span>
+        </div>
+        <div class="wait-wrap" style="margin-top:16px;">
+          <h1>WAIT</h1>
+        </div>
+        <p>Please wait. In a moment, the researcher will instruct you to proceed.</p>
+      `;
+
+      // Simulated Firebase note for dev footer
+      const res = sendEventSimulated("experiment setup");
+
+      // Next → route via shared flow
+      document.getElementById("nextBtn").addEventListener("click", function () {
+        const r = nextRoute("welcome", params);
+        goto(r.page, r.params);
+      });
+
+      // No back button on welcome pages
+      setupNavVisibility(params, { allowBack: false });
+      renderDevFooter(params, res && res.ok ? "experiment setup" : "(failed)");
+    });
+  </script>
 </body>
 </html>

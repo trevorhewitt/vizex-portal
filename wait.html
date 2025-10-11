@@ -18,5 +18,44 @@
       </div>
     </div>
   </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const params = parseParams();
+
+      // Look ahead to the *next* trial to decide the message
+      const nextParams = { ...params, i: String((parseInt(params.i || "0", 10) || 0) + 1) };
+      const nextInfoWrap = getCurrentTrialInfo(nextParams);
+      const nxt = nextInfoWrap && nextInfoWrap.info;
+
+      let msgHtml = "";
+      if (!nxt) {
+        // In normal flow this won't appear (drawing → end on last trial), but keep as fallback.
+        msgHtml = `<p>You are about to finish.</p>`;
+      } else if (isStartOfBlock(nxt)) {
+        msgHtml = `<p>Please enjoy a short break.</p>`;
+      } else {
+        const nextX = nxt.trialInBlock + 1;
+        const nextY = nxt.trialsInBlock;
+        msgHtml = `<p>You will soon begin trial ${nextX} of ${nextY}.</p>`;
+      }
+
+      const root = document.getElementById("root");
+      root.innerHTML = `
+        <div class="wait-wrap"><h1>WAIT</h1></div>
+        ${msgHtml}
+      `;
+
+      // Next → shared flow handles moving to welcome or next trial page
+      document.getElementById("nextBtn").addEventListener("click", function () {
+        const r = nextRoute("wait", params);
+        goto(r.page, r.params);
+      });
+
+      // No back button on wait pages
+      setupNavVisibility(params, { allowBack: false });
+      renderDevFooter(params, "");
+    });
+  </script>
 </body>
 </html>
