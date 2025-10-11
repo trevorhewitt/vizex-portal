@@ -1,41 +1,43 @@
 (function(){
   const params = parseParams();
-
-  // Title + WAIT block + instruction
   const name = params.n ? params.n : "";
   const inner = document.getElementById("welcomeInner");
+
+  const payload = VXFlow.placeholderPayload(params);
+
   inner.innerHTML = `
     <h1>Welcome back to The Vision Experiment${name ? ", " + escapeHtml(name) : ""}</h1>
 
-    <div class="wait-wrap">
-      <h1>WAIT</h1>
+    <div class="kv" style="margin-top:10px;">
+      <b>Block</b><span>${payload.blockNum}</span>
+      <b>Trial</b><span>${payload.trialText}</span>
+      <b>Trial type</b><span>${payload.typeLabel}</span>
     </div>
 
+    <div class="wait-wrap" style="margin-top:16px;">
+      <h1>WAIT</h1>
+    </div>
     <p>Please wait. In a moment, the researcher will instruct you to proceed.</p>
   `;
 
-  // Simulate Firebase message on this page
   const message = "experiment setup";
   const result = sendEventSimulated(message);
 
-  // Buttons: this page must have NO back button in experiment mode
   document.getElementById("backBtn").addEventListener("click", () => {
-    // In dev mode only, go back to param-check
-    goto("param-check.html", params);
+    const r = VXFlow.backRoute("welcome", params);
+    location.href = typeof r.page === "string" && r.page.endsWith(".html")
+      ? `${r.page}?${buildQuery(r.params)}`
+      : `${r.page}?${buildQuery(r.params)}`;
   });
 
   document.getElementById("nextBtn").addEventListener("click", () => {
-    // Next step in the real flow would branch on trial order / index.
-    // For now we just loop back to param-check as a placeholder for further pages.
-    goto("param-check.html", params);
+    const r = VXFlow.nextRoute("welcome", params);
+    location.href = `${r.page}?${buildQuery(r.params)}`;
   });
 
   setupNavVisibility(params, { allowBack: false });
-
-  // Dev footer shows the message that was “sent”
   renderDevFooter(params, result.ok ? message : "(failed)");
 
-  // Helpers
   function escapeHtml(s){
     return s.replace(/[&<>"']/g, c => ({
       "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"

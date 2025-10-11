@@ -1,7 +1,6 @@
 (function(){
   const params = parseParams();
 
-  // Render the parameter summary
   const sum = document.getElementById("summary");
   const sessionName = sessionCodeToDisplay(params.s) || "(unknown session)";
   sum.innerHTML = `
@@ -13,19 +12,15 @@
     <b>Mode</b><span>${params.m === "1" ? "DEV (m=1)" : "EXPERIMENT (m=0)"}</span>
   `;
 
-  // Navigation
   document.getElementById("backBtn").addEventListener("click", () => {
-    // Back to input page with current params preserved
     goto("index.html", params);
   });
 
   document.getElementById("nextBtn").addEventListener("click", () => {
-    goto("welcome.html", params);
+    const r = VXFlow.nextRoute("param-check", params);
+    location.href = `${r.page}?${buildQuery(r.params)}`;
   });
 
-  // In experiment mode we still allow back here; welcome page will hide it.
   setupNavVisibility(params, { allowBack: true });
-
-  // Dev footer (no message sent on this page)
   renderDevFooter(params, "");
 })();
