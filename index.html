@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>RESEARCHER USE ONLY — parameters input</title>
+  <link rel="stylesheet" href="assets/style.css" />
+  <script src="assets/utils.js" defer></script>
+  <script src="assets/index.js" defer></script>
+</head>
+<body>
+  <div class="page">
+    <div class="content">
+      <div class="inner">
+        <h1>RESEARCHER USE ONLY — parameters input</h1>
+
+        <div class="form-grid">
+          <label>
+            Session
+            <select id="sessionSelect" aria-label="session"></select>
+          </label>
+
+          <label>
+            Participant preferred name (display only)
+            <input type="text" id="nameInput" inputmode="text" autocomplete="off" />
+          </label>
+
+          <label>
+            Participant code (saved)
+            <input type="text" id="codeInput" inputmode="text" autocomplete="off" />
+          </label>
+
+          <label>
+            Trial order (string of condition characters; optional for now)
+            <input type="text" id="orderInput" inputmode="text" autocomplete="off" />
+          </label>
+
+          <label>
+            Current trial index (integer; default 0)
+            <input type="text" id="indexInput" value="0" inputmode="numeric" />
+          </label>
+
+          <label>
+            Mode
+            <select id="modeSelect" aria-label="mode">
+              <option value="0" selected>Experiment (m=0)</option>
+              <option value="1">Dev mode (m=1)</option>
+            </select>
+          </label>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="footer">
+      <div class="button-bar">
+        <button id="nextBtn" class="primary">Next</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
