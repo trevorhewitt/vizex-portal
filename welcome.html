@@ -14,6 +14,7 @@
     </div>
     <div class="footer">
       <div class="button-bar">
+        <button id="backBtn" class="secondary">Back</button>
         <button id="nextBtn" class="primary">Next</button>
       </div>
     </div>
@@ -39,17 +40,21 @@
         <p>Please wait. In a moment, the researcher will instruct you to proceed.</p>
       `;
 
-      // Simulated Firebase note for dev footer
-      const res = sendEventSimulated("experiment setup");
-
-      // Next → route via shared flow
+      // Inline handlers (works even if app.js doesn't bind these for welcome)
+      document.getElementById("backBtn").addEventListener("click", function () {
+        const r = backRoute("welcome", params);
+        goto(r.page, r.params);
+      });
       document.getElementById("nextBtn").addEventListener("click", function () {
         const r = nextRoute("welcome", params);
         goto(r.page, r.params);
       });
 
-      // No back button on welcome pages
+      // Hide back in Experiment mode; visible in Dev
       setupNavVisibility(params, { allowBack: false });
+
+      // Show dev footer + simulated message
+      const res = sendEventSimulated("experiment setup");
       renderDevFooter(params, res && res.ok ? "experiment setup" : "(failed)");
     });
   </script>

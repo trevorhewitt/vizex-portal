@@ -14,6 +14,7 @@
     </div>
     <div class="footer">
       <div class="button-bar">
+        <button id="backBtn" class="secondary">Back</button>
         <button id="nextBtn" class="primary">Next</button>
       </div>
     </div>
@@ -25,12 +26,11 @@
 
       // Look ahead to the *next* trial to decide the message
       const nextParams = { ...params, i: String((parseInt(params.i || "0", 10) || 0) + 1) };
-      const nextInfoWrap = getCurrentTrialInfo(nextParams);
-      const nxt = nextInfoWrap && nextInfoWrap.info;
+      const nextWrap = getCurrentTrialInfo(nextParams);
+      const nxt = nextWrap && nextWrap.info;
 
       let msgHtml = "";
       if (!nxt) {
-        // In normal flow this won't appear (drawing → end on last trial), but keep as fallback.
         msgHtml = `<p>You are about to finish.</p>`;
       } else if (isStartOfBlock(nxt)) {
         msgHtml = `<p>Please enjoy a short break.</p>`;
@@ -46,14 +46,19 @@
         ${msgHtml}
       `;
 
-      // Next → shared flow handles moving to welcome or next trial page
+      // Inline handlers (works even if app.js doesn't bind these for wait)
+      document.getElementById("backBtn").addEventListener("click", function () {
+        const r = backRoute("wait", params);
+        goto(r.page, r.params);
+      });
       document.getElementById("nextBtn").addEventListener("click", function () {
         const r = nextRoute("wait", params);
         goto(r.page, r.params);
       });
 
-      // No back button on wait pages
+      // Hide back in Experiment mode; visible in Dev
       setupNavVisibility(params, { allowBack: false });
+
       renderDevFooter(params, "");
     });
   </script>
