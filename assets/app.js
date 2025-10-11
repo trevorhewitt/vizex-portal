@@ -52,8 +52,18 @@ function buildQuery(params){
   const mode = `m=${(params.m==="1"||params.m===1)?"1":"0"}`;
   return base ? `${base}&${mode}` : mode;
 }
+
+/* --- NEW: site-absolute navigation base (handles GitHub Pages project path) --- */
+const SITE_BASE = (() => {
+  // e.g., /vizex-portal/ from https://trevorhewitt.github.io/vizex-portal/trials/page.html
+  const segs = location.pathname.split("/").filter(Boolean);
+  return segs.length ? `/${segs[0]}/` : "/";  // user/org page fallback "/"
+})();
+
 function goto(page, params){
-  location.href = `${page}?${buildQuery(params)}`;
+  // Always navigate from site root to avoid "/trials/trials/..."
+  const clean = page.startsWith("/") ? page.slice(1) : page;
+  location.href = `${SITE_BASE}${clean}?${buildQuery(params)}`;
 }
 function hasDev(params){ return String(params.m)==="1"; }
 function setupNavVisibility(params, {allowBack}){
@@ -181,7 +191,6 @@ function placeholderPayload(params){
 /* ===================== PAGE DISPATCH ===================== */
 document.addEventListener("DOMContentLoaded", () => {
   const page = (document.body.dataset.page||"").trim();
-
   const params = parseParams();
   setupPage(page, params);
 });
@@ -189,13 +198,11 @@ document.addEventListener("DOMContentLoaded", () => {
 function setupPage(page, params){
   switch(page){
 
-    /* -------- index (parameters input) -------- */
     case "index": {
       const sel = document.getElementById("sessionSelect");
       SESSIONS.forEach(([name, code])=>{
         const opt=document.createElement("option"); opt.value=code; opt.textContent=name; sel.appendChild(opt);
       });
-      // prefill if present
       if (params.s) sel.value = params.s;
       if (params.n) document.getElementById("nameInput").value = params.n;
       if (params.p) document.getElementById("codeInput").value = params.p;
@@ -218,7 +225,6 @@ function setupPage(page, params){
       break;
     }
 
-    /* -------- param-check -------- */
     case "param-check": {
       const sum = document.getElementById("summary");
       const sessionName = sessionCodeToDisplay(params.s) || "(unknown session)";
@@ -240,7 +246,6 @@ function setupPage(page, params){
       break;
     }
 
-    /* -------- welcome (block header) -------- */
     case "welcome": {
       const inner = document.getElementById("welcomeInner");
       const payload = placeholderPayload(params);
@@ -272,7 +277,6 @@ function setupPage(page, params){
       break;
     }
 
-    /* -------- placeholders: image-stim / pre-drawing / drawing / wait -------- */
     case "image-stim":
     case "pre-drawing":
     case "drawing":
@@ -306,14 +310,12 @@ function setupPage(page, params){
         const r = nextRoute(page, params);
         goto(r.page, r.params);
       });
-      // Drawing: no back in experiment; others allow back
       const allowBack = (page==="drawing") ? hasDev(params) : true;
       setupNavVisibility(params, {allowBack});
       renderDevFooter(params, "");
       break;
     }
 
-    /* -------- end -------- */
     case "end": {
       const root = document.getElementById("root");
       const { plan } = getCurrentTrialInfo(params);
