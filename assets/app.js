@@ -22,14 +22,8 @@ function sessionCodeToDisplay(code){
 }
 
 /* ===================== PARAMS + NAV ===================== */
-/* Compact query parameter schema
-   p = participant code (string)
-   n = participant display name (string) – for display only
-   s = session code (YYYYMMDDHHMM as string)
-   t = trial order (string of condition chars) (optional, may be "")
-   i = current trial index (integer as string; default "0") (trials only, X excluded)
-   m = mode (0=experiment, 1=dev)  <-- ALWAYS LAST
-*/
+/* p = participant code, n = display name, s = session code, t = trial order string,
+   i = current trial index (over trials only), m = mode (0/1, ALWAYS LAST) */
 function parseParams(){
   const sp = new URLSearchParams(location.search);
   return {
@@ -53,15 +47,13 @@ function buildQuery(params){
   return base ? `${base}&${mode}` : mode;
 }
 
-/* --- NEW: site-absolute navigation base (handles GitHub Pages project path) --- */
+/* Project root on GitHub Pages (e.g., /vizex-portal/) */
 const SITE_BASE = (() => {
-  // e.g., /vizex-portal/ from https://trevorhewitt.github.io/vizex-portal/trials/page.html
   const segs = location.pathname.split("/").filter(Boolean);
-  return segs.length ? `/${segs[0]}/` : "/";  // user/org page fallback "/"
+  return segs.length ? `/${segs[0]}/` : "/";
 })();
 
 function goto(page, params){
-  // Always navigate from site root to avoid "/trials/trials/..."
   const clean = page.startsWith("/") ? page.slice(1) : page;
   location.href = `${SITE_BASE}${clean}?${buildQuery(params)}`;
 }
@@ -141,41 +133,44 @@ function getCurrentTrialInfo(params){
     trialsInBlock: node.trialsInBlock
   }};
 }
-function firstPageForTrial(info){ return info.type.kind==="image" ? "trials/image-stim.html" : "trials/pre-drawing.html"; }
+function firstPageForTrial(info){ return info.type.kind==="image" ? "image-stim.html" : "pre-drawing.html"; }
 function isStartOfBlock(info){ return info.trialInBlock===0; }
+
 function nextRoute(currentPage, params){
   const { plan, idx, info } = getCurrentTrialInfo(params);
-  if (!info || plan.totalTrials===0) return { page:"trials/end.html", params };
+  if (!info || plan.totalTrials===0) return { page:"end.html", params };
   const atLast = idx===plan.totalTrials-1;
   switch(currentPage){
-    case "param-check": return { page: isStartOfBlock(info)?"welcome.html":firstPageForTrial(info), params };
-    case "welcome": return { page: firstPageForTrial(info), params };
-    case "image-stim": return { page: "trials/pre-drawing.html", params };
-    case "pre-drawing": return { page: "trials/drawing.html", params };
-    case "drawing": return atLast ? {page:"trials/end.html", params} : {page:"trials/wait.html", params};
+    case "param-check": return { page: isStartOfBlock(info) ? "welcome.html" : firstPageForTrial(info), params };
+    case "welcome":     return { page: firstPageForTrial(info), params };
+    case "image-stim":  return { page: "pre-drawing.html", params };
+    case "pre-drawing": return { page: "drawing.html", params };
+    case "drawing":     return atLast ? {page:"end.html", params} : {page:"wait.html", params};
     case "wait": {
       const nextParams = {...params, i:String(idx+1)};
       const nxtInfo = getCurrentTrialInfo(nextParams).info;
-      if (!nxtInfo) return { page:"trials/end.html", params: nextParams };
+      if (!nxtInfo) return { page:"end.html", params: nextParams };
       return isStartOfBlock(nxtInfo)
         ? { page:"welcome.html", params: nextParams }
         : { page:firstPageForTrial(nxtInfo), params: nextParams };
     }
-    default: return { page:"trials/end.html", params };
+    default: return { page:"end.html", params };
   }
 }
+
 function backRoute(currentPage, params){
   const { info } = getCurrentTrialInfo(params);
   switch(currentPage){
-    case "welcome": return { page:"param-check.html", params };
-    case "image-stim": return { page:"welcome.html", params };
-    case "pre-drawing": return { page: (info && info.type.kind==="image") ? "trials/image-stim.html" : "welcome.html", params };
-    case "drawing": return { page:"trials/pre-drawing.html", params };
-    case "wait": return { page:"trials/drawing.html", params };
-    case "end": return { page:"param-check.html", params };
-    default: return { page:"param-check.html", params };
+    case "welcome":     return { page:"param-check.html", params };
+    case "image-stim":  return { page:"welcome.html", params };
+    case "pre-drawing": return { page: (info && info.type.kind==="image") ? "image-stim.html" : "welcome.html", params };
+    case "drawing":     return { page:"pre-drawing.html", params };
+    case "wait":        return { page:"drawing.html", params };
+    case "end":         return { page:"param-check.html", params };
+    default:            return { page:"param-check.html", params };
   }
 }
+
 function placeholderPayload(params){
   const { plan, idx, info } = getCurrentTrialInfo(params);
   if (!info) return { trialText:"Trial 0 of 0", blockNum:0, typeLabel:"(none)", idx, totalInBlock:0 };
@@ -230,8 +225,8 @@ function setupPage(page, params){
       const sessionName = sessionCodeToDisplay(params.s) || "(unknown session)";
       sum.innerHTML = `
         <b>Session</b><span>${sessionName} — ${params.s || "(empty)"}</span>
-        <b>Display name</b><span>${params.n || "(empty)"}</span>
-        <b>Participant code</b><span>${params.p || "(empty)"}</span>
+        <b>Display name</b><span>${params.n || "(empty)")}</span>
+        <b>Participant code</b><span>${params.p || "(empty)")}</span>
         <b>Trial order</b><span>${typeof params.t==="string" ? (params.t||"(empty)") : "(empty)"} </span>
         <b>Current trial index</b><span>${params.i || "0"}</span>
         <b>Mode</b><span>${params.m==="1" ? "DEV (m=1)" : "EXPERIMENT (m=0)"}</span>
@@ -327,10 +322,13 @@ function setupPage(page, params){
         const r = backRoute("end", params);
         goto(r.page, r.params);
       });
-      document.getElementById("restartBtn").addEventListener("click", (e)=>{
-        e.preventDefault();
-        goto("param-check.html", params);
-      });
+      const restart = document.getElementById("restartBtn");
+      if (restart){
+        restart.addEventListener("click", (e)=>{
+          e.preventDefault();
+          goto("param-check.html", params);
+        });
+      }
       setupNavVisibility(params, {allowBack:true});
       renderDevFooter(params, "experiment finished");
       break;
