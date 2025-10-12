@@ -1,66 +1,87 @@
-/* Global, dark-room friendly, no scrolling */
+/* ===========================
+   VizEx Global Layout (No Scroll)
+   - Fits all content within the visible viewport on iPad
+   - Footer buttons never cropped (safe-area aware)
+   - Top "margin feel" is driven by .content padding (see note below)
+   =========================== */
+
 :root{
   --bg: #777777;
-  --text: #222222;      /* dark, not pure black */
+  --text: #222222;
   --accent: #333333;
   --btnText: #ffffff;
-  --maxWidth: 900px;    /* “book margin” feel on tablets */
+  --maxWidth: 900px;   /* “book margin” feel on tablets */
 }
 
+/* Universal box model */
 * { box-sizing: border-box; }
 
-html, body {
+/* Use small-viewport height so vh matches what’s visible on iOS/Chrome.
+   Prevent scroll; respect safe areas. */
+html, body{
   margin: 0;
   padding: 0;
-  height: 100vh;
-  overflow: hidden;                 /* disable scrolling */
+  height: 100vh;   /* fallback */
+  height: 100svh;  /* correct mobile visible height */
+  overflow: hidden;
   background: var(--bg);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;
 }
 
-.page {
-  height: 100vh;
+/* 2-row grid: content + footer; includes device safe-area padding */
+.page{
+  height: 100vh;   /* fallback */
+  height: 100svh;
   display: grid;
-  grid-template-rows: 1fr auto;     /* content area + footer buttons */
+  grid-template-rows: 1fr auto;
+  padding:
+    env(safe-area-inset-top, 0px)
+    env(safe-area-inset-right, 0px)
+    env(safe-area-inset-bottom, 0px)
+    env(safe-area-inset-left, 0px);
 }
 
-.content {
+/* Content row must be allowed to shrink so footer stays visible.
+   NOTE: The first value here (3vh) controls the “top margin feel”. */
+.content{
+  min-height: 0;                 /* critical: allows shrinking */
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 4vh 5vw;
+  padding: 3vh 5vw;              /* ← adjust top margin feel here (was 4vh) */
 }
 
-.inner {
+/* Inner “book box” */
+.inner{
   width: 100%;
   max-width: var(--maxWidth);
-  /* Invisible “book box” via generous padding—no borders */
-  padding: clamp(16px, 4vh, 40px);
+  padding: clamp(14px, 3.5vh, 36px);  /* interior breathing room */
 }
 
-h1 {
+/* Type */
+h1{
   margin: 0 0 16px 0;
-  font-size: clamp(24px, 4.6vw, 40px); /* large, clear */
+  font-size: clamp(24px, 4.6vw, 40px);
   font-weight: 700;
 }
-
-p, label, .kv {
-  font-size: clamp(18px, 3.6vw, 24px); /* still large for body text */
+p, label, .kv{
+  font-size: clamp(18px, 3.6vw, 24px);
   line-height: 1.35;
   margin: 10px 0;
 }
+small{ opacity: 0.8; }
 
-small { opacity: 0.8; }
-
-.form-grid {
+/* Forms */
+.form-grid{
   display: grid;
   grid-template-columns: 1fr;
   gap: 14px;
   margin-top: 12px;
 }
-
-input[type="text"], select, textarea {
+input[type="text"], select, textarea{
   width: 100%;
   padding: 12px 14px;
   border: none;
@@ -71,11 +92,11 @@ input[type="text"], select, textarea {
   outline: none;
 }
 
-.footer {
-  padding: 16px 5vw 26px;
+/* Footer stays above iPad home indicator */
+.footer{
+  padding: 16px 5vw calc(26px + env(safe-area-inset-bottom, 0px));
 }
-
-.button-bar {
+.button-bar{
   max-width: var(--maxWidth);
   margin: 0 auto;
   display: flex;
@@ -83,39 +104,50 @@ input[type="text"], select, textarea {
   justify-content: center;
 }
 
-button.primary, a.primary {
+/* Buttons */
+button.primary, a.primary,
+button.secondary, a.secondary{
+  border: none;
+  border-radius: 14px;
+  padding: 14px 26px;
+  font-size: clamp(18px, 3.8vw, 24px);
+  font-weight: 700;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 160px;
+}
+button.primary, a.primary{
   background: var(--accent);
   color: var(--btnText);
-  border: none;
-  border-radius: 14px;
-  padding: 14px 26px;
-  font-size: clamp(18px, 3.8vw, 24px);
-  font-weight: 700;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 160px;
 }
-
-button.secondary, a.secondary {
+button.secondary, a.secondary{
   background: #555;
   color: var(--btnText);
-  border: none;
-  border-radius: 14px;
-  padding: 14px 26px;
-  font-size: clamp(18px, 3.8vw, 24px);
-  font-weight: 700;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 160px;
+}
+button:active, a:active{ transform: translateY(1px); }
+
+/* Key-value layout */
+.kv{ display: grid; grid-template-columns: 180px 1fr; gap: 8px 12px; }
+.kv b{ font-weight: 700; }
+
+/* WAIT block style */
+.wait-wrap{
+  background-color: #e6ffff;
+  padding: 20px;
+  border: 5px solid #00e0ff;
+  text-align: center;
+}
+.wait-wrap h1{
+  color: #007b8a;
+  font-size: clamp(36px, 7vw, 50px);
+  font-weight: bold;
+  margin: 0;
 }
 
-button:active, a:active { transform: translateY(1px); }
-
-.dev {
+/* Dev footer text */
+.dev{
   margin-top: 18px;
   padding-top: 14px;
   border-top: 1px dashed #666;
@@ -123,19 +155,21 @@ button:active, a:active { transform: translateY(1px); }
   word-break: break-word;
 }
 
-.kv { display: grid; grid-template-columns: 180px 1fr; gap: 8px 12px; }
-.kv b { font-weight: 700; }
-
-/* WAIT block style as requested */
-.wait-wrap {
-  background-color: #e6ffff;
-  padding: 20px;
-  border: 5px solid #00e0ff;
-  text-align: center;
+/* Responsive tightening on short screens: reduce paddings/widths before any crop */
+@media (max-height: 780px){
+  .content{ padding: 2.5vh 4vw; }                  /* top margin feel on shorter screens */
+  .inner{ padding: clamp(12px, 2.5vh, 28px); }
+  :root{ --maxWidth: 820px; }
+  .button-bar{ gap: 12px; }
+  button.primary, a.primary,
+  button.secondary, a.secondary{
+    padding: 12px 22px;
+    min-width: 140px;
+    font-size: clamp(16px, 3.4vw, 22px);
+  }
 }
-.wait-wrap h1 {
-  color: #007b8a;
-  font-size: clamp(36px, 7vw, 50px);
-  font-weight: bold;
-  margin: 0;
+@media (max-height: 680px){
+  .content{ padding: 2vh 3.5vw; }                  /* further tighten */
+  .inner{ padding: clamp(10px, 2vh, 24px); }
+  :root{ --maxWidth: 760px; }
 }
