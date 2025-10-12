@@ -3,15 +3,28 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Placeholder — Pre-Drawing</title>
+  <title></title>
   <link rel="stylesheet" href="assets/style.css" />
-  <script src="assets/app.js" defer></script>
+  <script src="assets/util.js" defer></script>
+  <style>
+    .center-wrap {
+      min-height: 60vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .center-wrap .button-bar { text-align: center; }
+  </style>
 </head>
 <body data-page="pre-drawing">
   <div class="page">
     <div class="content">
-      <div class="inner" id="root"></div>
+      <div class="inner" id="root">
+        <!-- Filled once below -->
+      </div>
     </div>
+
+    <!-- Footer exists for dev mode; hidden in experiment mode -->
     <div class="footer">
       <div class="button-bar">
         <button id="backBtn" class="secondary">Back</button>
@@ -19,5 +32,43 @@
       </div>
     </div>
   </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const params = VE.parseParams();
+      const root   = document.getElementById("root");
+
+      // Final-state render: ONLY a centered participant button
+      root.innerHTML = `
+        <div class="center-wrap">
+          <div class="button-bar">
+            <button id="beginBtn" class="primary">begin drawing</button>
+          </div>
+        </div>
+      `;
+
+      // Wire Back/Next so they work when visible (dev mode)
+      VE.bindNavForPage("pre-drawing", params);
+
+      // Dev mode shows Back/Next + footer; experiment hides them
+      const dev = VE.hasDev(params);
+      VE.setupNavVisibility(params, { allowBack: dev });
+
+      const nextBtn = document.getElementById("nextBtn");
+      if (nextBtn) nextBtn.style.display = dev ? "" : "none";
+
+      const footer = document.querySelector(".footer");
+      if (footer) footer.style.display = dev ? "" : "none";
+
+      // Participant button → advance via standard route (pre-drawing → drawing)
+      document.getElementById("beginBtn").addEventListener("click", () => {
+        const r = VE.nextRoute("pre-drawing", params);
+        VE.goto(r.page, r.params);
+      });
+
+      // Optional: show dev footer details in dev mode
+      VE.renderDevFooter(params, dev ? "pre-drawing (dev)" : "");
+    });
+  </script>
 </body>
 </html>
