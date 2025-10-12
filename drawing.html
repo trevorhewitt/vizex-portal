@@ -3,15 +3,18 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Placeholder — Drawing</title>
+  <title>Drawing</title>
   <link rel="stylesheet" href="assets/style.css" />
-  <script src="assets/app.js" defer></script>
+  <script src="assets/util.js" defer></script>
 </head>
 <body data-page="drawing">
   <div class="page">
     <div class="content">
-      <div class="inner" id="root"></div>
+      <div class="inner" id="root">
+        <!-- Intentionally blank. You'll mount the drawing app here later. -->
+      </div>
     </div>
+
     <div class="footer">
       <div class="button-bar">
         <button id="backBtn" class="secondary">Back</button>
@@ -19,5 +22,21 @@
       </div>
     </div>
   </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const params = VE.parseParams();
+
+      // Wire nav handlers so Back/Next work
+      VE.bindNavForPage("drawing", params);
+
+      // Back only in dev; Next in both modes (so participants can proceed)
+      const dev = VE.hasDev(params);
+      VE.setupNavVisibility(params, { allowBack: dev });
+
+      // Optional dev footer for quick checks
+      VE.renderDevFooter(params, dev ? "drawing (dev)" : "");
+    });
+  </script>
 </body>
 </html>

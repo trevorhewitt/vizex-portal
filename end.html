@@ -5,19 +5,58 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>End — The Vision Experiment</title>
   <link rel="stylesheet" href="assets/style.css" />
-  <script src="assets/app.js" defer></script>
+  <script src="assets/util.js" defer></script>
+  <style>
+    /* Keep it very minimal; center is optional */
+    .end-wrap {
+      min-height: 60vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+  </style>
 </head>
 <body data-page="end">
   <div class="page">
     <div class="content">
-      <div class="inner" id="root"></div>
+      <div class="inner">
+        <div class="end-wrap">
+          <h1 id="endMessage">
+            You have now completed the experiment, congradulations!
+
+            Thank you for taking the time to contribute to scientific research.
+
+            Please wait a moment for the rest of the participants to finish the experiment.
+          </h1>
+        </div>
+      </div>
     </div>
+
     <div class="footer">
       <div class="button-bar">
         <button id="backBtn" class="secondary">Back</button>
-        <a id="restartBtn" class="primary" href="../param-check.html">Restart</a>
       </div>
     </div>
   </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const params = VE.parseParams();
+
+      // Only Back exists here; wire it
+      VE.bindNavForPage("end", params);
+
+      // Dev mode: show Back; Experiment mode: hide footer entirely
+      const dev = VE.hasDev(params);
+      VE.setupNavVisibility(params, { allowBack: dev });
+
+      const footer = document.querySelector(".footer");
+      if (footer) footer.style.display = dev ? "" : "none";
+
+      // Optional dev footer
+      VE.renderDevFooter(params, dev ? "end (dev)" : "");
+    });
+  </script>
 </body>
 </html>
