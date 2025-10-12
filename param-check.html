@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>RESEARCHER USE ONLY — parameters check</title>
   <link rel="stylesheet" href="assets/style.css" />
-  <script src="assets/app.js" defer></script>
+  <script src="assets/util.js" defer></script>
 </head>
 <body data-page="param-check">
   <div class="page">
@@ -22,5 +22,30 @@
       </div>
     </div>
   </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const params = VE.parseParams();
+      const sessionName = VE.sessionCodeToDisplay(params.s) || "(unknown session)";
+
+      // Summary table
+      const sum = document.getElementById("summary");
+      sum.innerHTML = `
+        <b>Session</b><span>${sessionName} — ${params.s || "(empty)"}</span>
+        <b>Display name</b><span>${params.n || "(empty)"}</span>
+        <b>Participant code</b><span>${params.p || "(empty)"}</span>
+        <b>Trial order</b><span>${typeof params.t==="string" ? (params.t || "(empty)") : "(empty)"} </span>
+        <b>Current trial index</b><span>${params.i || "0"}</span>
+        <b>Mode</b><span>${params.m==="1" ? "DEV (m=1)" : "EXPERIMENT (m=0)"}</span>
+      `;
+
+      // Wire nav
+      VE.bindNavForPage("param-check", params);
+      VE.setupNavVisibility(params, { allowBack: true });
+
+      // Optional dev footer
+      VE.renderDevFooter(params, "param-check");
+    });
+  </script>
 </body>
 </html>

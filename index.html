@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>RESEARCHER USE ONLY — parameters input</title>
   <link rel="stylesheet" href="assets/style.css" />
-  <script src="assets/app.js" defer></script>
+  <script src="assets/util.js" defer></script>
 </head>
 <body data-page="index">
   <div class="page">
@@ -56,5 +56,43 @@
       </div>
     </div>
   </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const params = VE.parseParams();
+
+      // Populate sessions
+      const sel = document.getElementById("sessionSelect");
+      VE.SESSIONS.forEach(([label, code]) => {
+        const opt = document.createElement("option");
+        opt.value = code; opt.textContent = label;
+        sel.appendChild(opt);
+      });
+
+      // Prefill from query (if any)
+      if (params.s) sel.value = params.s;
+      if (params.n) document.getElementById("nameInput").value  = params.n;
+      if (params.p) document.getElementById("codeInput").value  = params.p;
+      if (typeof params.t === "string") document.getElementById("orderInput").value = params.t;
+      if (params.i) document.getElementById("indexInput").value = params.i;
+      if (params.m) document.getElementById("modeSelect").value = params.m;
+
+      // Next → param-check.html with built query
+      document.getElementById("nextBtn").addEventListener("click", () => {
+        const nextParams = {
+          p: document.getElementById("codeInput").value.trim(),
+          n: document.getElementById("nameInput").value.trim(),
+          s: document.getElementById("sessionSelect").value,
+          t: document.getElementById("orderInput").value.trim(),
+          i: String(parseInt(document.getElementById("indexInput").value || "0", 10) || 0),
+          m: document.getElementById("modeSelect").value
+        };
+        VE.goto("param-check.html", nextParams);
+      });
+
+      // Optional dev footer
+      VE.renderDevFooter(params, "index");
+    });
+  </script>
 </body>
 </html>
