@@ -5,12 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title></title>
   <link rel="stylesheet" href="assets/style.css" />
-  <script src="assets/app.js" defer></script>
+  <script src="assets/util.js" defer></script>
 </head>
-<body data-page="welcome" data-render="custom">
+<body data-page="welcome">
   <div class="page">
     <div class="content">
-      <div class="inner" id="welcomeInner"></div>
+      <div class="inner" id="welcomeInner">
+        <!-- Final markup will be set once; no placeholders that get replaced -->
+      </div>
     </div>
     <div class="footer">
       <div class="button-bar">
@@ -24,21 +26,30 @@
     document.addEventListener("DOMContentLoaded", function () {
       const params = VE.parseParams();
       const payload = VE.placeholderPayload(params);
-      const name = params.n ? ", " + VE.esc(params.n) : "";
+      const namePart = params.n ? VE.esc(params.n) : "";
 
       const inner = document.getElementById("welcomeInner");
+      // Final-state render (no placeholder swap)
       inner.innerHTML = `
         <h1 style="margin: 0 0 24px 0; font-size: clamp(32px, 6vw, 60px); font-weight: 700;">
-          Welcome back to The Vision Experiment<br><br>
-          <span style="display:block; font-size: clamp(40px, 8vw, 80px); margin-top: 8px;">${name}</span>
+          Welcome back to The Vision Experiment,<br><br>
+          <span style="display:block; font-size: clamp(40px, 8vw, 80px); margin-top: 8px;">${namePart}</span>
         </h1>
         <div class="wait-wrap" style="margin-top:16px;">
           <h1>WAIT</h1>
         </div>
         <p>Please wait. In a moment, the researcher will instruct you to proceed.</p>
+
+        <!-- Optional block/trial info you might want to keep -->
+        <div class="kv" style="margin-top:10px;">
+          <b>Block</b><span>${payload.blockNum}</span>
+          <b>Trial</b><span>${payload.trialText}</span>
+          <b>Trial type</b><span>${payload.typeLabel}</span>
+        </div>
       `;
 
-      // Wire nav + visibility (no auto-injection from app.js on custom pages)
+      // Navigation + visibility
+      VE.bindNavForPage("welcome", params);
       VE.setupNavVisibility(params, { allowBack: false });
 
       // Dev footer + simulated message

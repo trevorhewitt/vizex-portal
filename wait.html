@@ -5,12 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Wait</title>
   <link rel="stylesheet" href="assets/style.css" />
-  <script src="assets/app.js" defer></script>
+  <script src="assets/util.js" defer></script>
 </head>
 <body data-page="wait">
   <div class="page">
     <div class="content">
-      <div class="inner" id="root"></div>
+      <div class="inner">
+        <div class="wait-wrap"><h1>WAIT</h1></div>
+        <p id="waitMessage"></p>
+      </div>
     </div>
     <div class="footer">
       <div class="button-bar">
@@ -19,5 +22,20 @@
       </div>
     </div>
   </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const params = VE.parseParams();
+      // Minimal, final-state render (no placeholder swap)
+      document.getElementById("waitMessage").textContent = VE.computeNextTrialMessage(params);
+
+      // Wire nav + visibility
+      VE.bindNavForPage("wait", params);
+      VE.setupNavVisibility(params, { allowBack: false });
+
+      // (Optional) Dev footer
+      VE.renderDevFooter(params, "");
+    });
+  </script>
 </body>
 </html>
