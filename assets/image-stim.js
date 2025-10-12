@@ -20,29 +20,28 @@
       "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Woman_teaching_geometry.jpg/800px-Woman_teaching_geometry.jpg",
     ],
   };
-
-  // --- utility ---
   function pickForCode(code){
     const list = IMAGE_LISTS[code] || IMAGE_LISTS.A || [];
     if (!list.length) return null;
     const idx = Math.floor(Math.random() * list.length);
-    const src = list[idx];
-    const alt = `Stimulus ${code} placeholder`;
-    return { src, alt };
+    return { src: list[idx], alt: `Stimulus ${code} placeholder` };
   }
   function preload(src){
     return new Promise((resolve, reject)=>{
       const img = new Image();
-      img.onload = ()=> resolve(src);
+      img.onload = ()=> resolve(true);
       img.onerror = ()=> reject(new Error("image failed to load: " + src));
       img.src = src;
     });
   }
 
-  function htmlStage1(onStart){
+  function htmlStage1(){
     return `
-      <div class="center-wrap">
-        <button id="startStimBtn" class="big-button">click here when you are ready to see the image</button>
+      <div class="center-wrap stage1-wrap">
+        <div class="button-bar">
+          <!-- Use site's normal primary button styling -->
+          <button id="startStimBtn" class="primary">click here when you are ready to see the image</button>
+        </div>
       </div>
     `;
   }
@@ -65,88 +64,71 @@
     `;
   }
 
-  // --- main flow ---
-  document.addEventListener("DOMContentLoaded", async function(){
+  document.addEventListener("DOMContentLoaded", function(){
     const params = VE.parseParams();
     const root = document.getElementById("root");
 
-    // Wire nav invisibly (kept consistent with rest of app)
+    // Bind nav
     VE.bindNavForPage("image-stim", params);
-    VE.setupNavVisibility(params, { allowBack: false });
 
-    // Resolve the image set based on current trial code
+    // Show/hide nav based on dev mode:
+    // - Back: in dev, always shown by setupNavVisibility; in experiment, hidden
+    // - Next: in dev, visible (so you can skip); in experiment, hidden
+    const dev = VE.hasDev(params);
+    VE.setupNavVisibility(params, { allowBack: false });
+    const nextBtn = document.getElementById("nextBtn");
+    if (nextBtn) nextBtn.style.display = dev ? "" : "none";
+
+    // Choose stimulus now and start preloading immediately (while we're in Stage 1)
     const infoWrap = VE.getCurrentTrialInfo(params);
     const cur = infoWrap && infoWrap.info;
-    const code = cur && cur.code || "A";
-
-    // Choose and start preloading the stimulus immediately on page load
+    const code = (cur && cur.code) || "A";
     const chosen = pickForCode(code);
-    let preloadPromise = null;
+
+    let imageReady = false;
+    let preloadErr = null;
+
     if (chosen) {
-      preloadPromise = preload(chosen.src).catch(err => err);
+      preload(chosen.src)
+        .then(()=> { imageReady = true; })
+        .catch(err => { preloadErr = err; });
     }
 
-    // ========== Stage 1 ==========
+    // ===== Stage 1 =====
     root.innerHTML = htmlStage1();
-    const startBtn = document.getElementById("startStimBtn");
-
-    // If dev, you can append a small footer
     VE.renderDevFooter(params, `image-stim: chosen=${code}`);
 
-    // Wait for click to proceed to Stage 2 (fixation)
+    const startBtn = document.getElementById("startStimBtn");
     startBtn.addEventListener("click", async ()=>{
-      // ========== Stage 2 ==========
+      // ===== Stage 2 (fixation) =====
       root.innerHTML = htmlStage2();
 
       const fixationMinMs = 5000;
       const tStartFix = performance.now();
-      let imageReady = false;
 
-      // Await preload if we attempted one; on failure, keep waiting (in dev we’ll show a note)
-      if (preloadPromise) {
-        const res = await preloadPromise;
-        if (res instanceof Error) {
-          if (VE.hasDev(params)) {
-            const note = document.createElement("p");
-            note.textContent = "DEV: stimulus failed to preload; will remain on fixation.";
-            (document.querySelector(".inner")||document.body).appendChild(note);
-          }
-        } else {
-          imageReady = true;
-        }
-      } else {
-        // No list? We keep waiting (dev note)
-        if (VE.hasDev(params)) {
-          const note = document.createElement("p");
-          note.textContent = "DEV: no image list found for this code; staying on fixation.";
-          (document.querySelector(".inner")||document.body).appendChild(note);
-        }
+      // Wait at least 5s; if image not ready, wait longer.
+      // Add a safety cap (e.g., 30s) so you don't soft-lock if an image 404s.
+      const safetyCapMs = 30000;
+
+      function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
+
+      // Ensure minimum 5s
+      const elapsedNow = performance.now() - tStartFix;
+      const remaining = Math.max(0, fixationMinMs - elapsedNow);
+      if (remaining > 0) await sleep(remaining);
+
+      const tFixEndMin = performance.now();
+      const tFixMaxEnd = tStartFix + safetyCapMs;
+
+      while (!imageReady && performance.now() < tFixMaxEnd) {
+        await sleep(100);
       }
+      // If we hit an error or the cap, proceed anyway (dev can use Next)
+      // => chosen may fail to render; we’ll fall back below.
 
-      // Ensure at least 5s fixation; if image not ready, extend until it is ready
-      async function waitUntilReady(){
-        // Wait until min time has elapsed
-        const elapsed = performance.now() - tStartFix;
-        const remaining = Math.max(0, fixationMinMs - elapsed);
-        if (remaining > 0) {
-          await new Promise(r => setTimeout(r, remaining));
-        }
-        // If image still not ready, poll until it is (checks every 100ms)
-        while (!imageReady) {
-          await new Promise(r => setTimeout(r, 100));
-          // if preloadPromise resolved after we checked earlier
-          if (preloadPromise && !(await Promise.resolve(preloadPromise)) instanceof Error) {
-            imageReady = true;
-          }
-        }
-      }
-
-      await waitUntilReady();
-
-      // ========== Stage 3 ==========
-      // Show already-loaded image; ensure 20s total visible with fade 17–20s
-      if (!chosen || chosen instanceof Error) {
-        // If somehow we have no valid image, just navigate on (fail-safe)
+      // ===== Stage 3 (stimulus) =====
+      if (!chosen || preloadErr) {
+        // Fail-safe: just advance (avoids hanging)
         const r = VE.nextRoute("image-stim", params);
         VE.goto(r.page, r.params);
         return;
@@ -155,24 +137,19 @@
       root.innerHTML = htmlStage3(chosen);
       const imgEl = document.getElementById("stimImg");
 
-      // Exact timing: 0–17s visible; 17–20s fade; 20s -> auto-advance
-      const t0 = performance.now();
+      // Exact 20s on-screen for the stimulus:
+      // 0–17s visible; 17–20s fade; at 20s -> auto-advance
       const fadeAt = 17000;
       const endAt  = 20000;
 
       const timers = [];
+      timers.push(setTimeout(()=> { if (imgEl) imgEl.style.opacity = "0"; }, fadeAt));
       timers.push(setTimeout(()=> {
-        // Start CSS fade to 0 over 3s
-        if (imgEl) imgEl.style.opacity = "0";
-      }, fadeAt));
-
-      timers.push(setTimeout(()=> {
-        // Fully invisible now; go to next page
         const r = VE.nextRoute("image-stim", params);
         VE.goto(r.page, r.params);
       }, endAt));
 
-      // Safety: if the user somehow navigates away early, clear timers
+      // If navigating away early, clear timers
       window.addEventListener("beforeunload", ()=> timers.forEach(clearTimeout), { once:true });
     });
   });

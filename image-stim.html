@@ -5,15 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Image Stimulus</title>
   <link rel="stylesheet" href="assets/style.css" />
-  <!-- Use UTIL only -->
+  <!-- Utilities only -->
   <script src="assets/util.js" defer></script>
   <!-- Page-specific controller -->
   <script src="assets/image-stim.js" defer></script>
   <style>
-    /* Hide navigation controls on this page */
-    #backBtn, #nextBtn { display: none !important; }
-
-    /* Simple centering + fixed stimulus sizing */
+    /* Centering + fixed stimulus sizing */
     .center-wrap {
       min-height: 60vh;
       display: flex;
@@ -21,16 +18,17 @@
       justify-content: center;
     }
     .stimulus-box {
-      width: 500px; height: 500px;  /* you said you'll tweak this; locked square */
+      width: 500px; height: 500px;  /* tweak this as needed */
       display: flex; align-items: center; justify-content: center;
     }
     .stimulus-box img {
-      width: 100%; height: 100%; object-fit: cover; /* force square display */
-      opacity: 1; transition: opacity 3s linear;     /* used for 17–20s fade */
+      width: 100%; height: 100%; object-fit: cover;
+      opacity: 1; transition: opacity 3s linear; /* for 17–20 s fade */
     }
-    .big-button {
-      font-size: clamp(18px, 4vw, 28px);
-      padding: 12px 24px;
+
+    /* Optional: center Stage-1 button nicely in the content area */
+    .stage1-wrap .button-bar {
+      text-align: center;
     }
   </style>
 </head>
@@ -38,11 +36,11 @@
   <div class="page">
     <div class="content">
       <div class="inner" id="root">
-        <!-- Filled once by image-stim.js (no placeholders that get replaced later) -->
+        <!-- Filled once by image-stim.js -->
       </div>
     </div>
 
-    <!-- Footer kept for consistency; buttons are hidden above -->
+    <!-- Footer (Back/Next visibility handled by JS based on dev mode) -->
     <div class="footer">
       <div class="button-bar">
         <button id="backBtn" class="secondary">Back</button>
