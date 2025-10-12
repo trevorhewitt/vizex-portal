@@ -7,6 +7,40 @@ const DEMO_MODE = true;
 
 const SLOW_TABLET_DEFER_BLUR = true; 
 
+// ===================== Cloudinary config + upload helpers =====================
+// Your actual Cloudinary info:
+const CLOUD_NAME = "dlginribm";           // your Cloudinary cloud name
+const UPLOAD_PRESET_IMAGE = "unsigned_preset"; // unsigned preset for images/SVG
+const UPLOAD_PRESET_RAW   = "unsigned_preset"; // unsigned preset for raw files (JSON)
+// NOTE: If your preset isn't enabled for RAW uploads, create/enable one and put its name in UPLOAD_PRESET_RAW.
+
+// Generic helper for FormData POST
+async function postFormData(url, formData) {
+  const res = await fetch(url, { method: "POST", body: formData });
+  if (!res.ok) throw new Error(`Cloudinary network error ${res.status}`);
+  return res.json();
+}
+
+// Upload for images (PNG/SVG) via image/upload
+function uploadImageToCloudinary(blob, fileName) {
+  const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`;
+  const fd = new FormData();
+  fd.append("file", blob, fileName);
+  fd.append("upload_preset", UPLOAD_PRESET_IMAGE);
+  // Optional: fd.append("public_id", fileName.replace(/\.[^.]+$/, "")); // keep original base name
+  return postFormData(url, fd);
+}
+
+// Upload for JSON (or other non-image) via raw/upload
+function uploadRawToCloudinary(blob, fileName) {
+  const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/raw/upload`;
+  const fd = new FormData();
+  fd.append("file", blob, fileName);
+  fd.append("upload_preset", UPLOAD_PRESET_RAW);
+  return postFormData(url, fd);
+}
+
+
 /**
  * DrawingApp encapsulates the interactive drawing surface and controls.
  * It stores drawing state, handles input events, and produces exports (PNG/SVG/JSON).
@@ -742,32 +776,25 @@ class DrawingApp {
 
     /* ---------- Save / Export / Import ---------- */
     
-    // Drop-in replacement for the DrawingApp class method
-    // Requires: window.VE (util.js), window.__VE_showSaving / __VE_hideSaving helpers,
-    //           and an uploadToCloudinary(blob, fileName) function (your snippet).
     // Guarantees:
-    // - Saves "must-have" artifacts (JSON + CROPPED PNG) to Cloudinary BEFORE navigating.
-    // - Also attempts "nice-to-have" artifacts (UNCROPPED PNG + SVG), but navigation
-    //   does not depend on them.
-    // - Retries uploads with exponential backoff. If must-have uploads never succeed,
-    //   the page stays on the saving overlay and DOES NOT advance.
+    // - Must-have uploads (JSON + CROPPED PNG) complete to Cloudinary BEFORE navigating.
+    // - Nice-to-have (UNCROPPED PNG + SVG) attempted but won't block navigation.
+    // - Retries with exponential backoff; if a must-have fails, we DO NOT advance.
 
     async onSave() {
-    // -------- Config (tune if needed) --------
-    const MUST_HAVE = ["json", "png_cropped", "svg"];      // blocking artifacts
-    const NICE_TO_HAVE = ["png_uncropped"];  // non-blocking artifacts
-    const MAX_RETRIES = 5;                          // per-file attempts
-    const BASE_DELAY_MS = 600;                      // backoff base
-    const JITTER_MS = 250;                          // small random jitter
-    const MIN_SPINNER_MS = 1500;                    // minimum overlay time (ms) after start
+    // -------- Config --------
+    const MUST_HAVE = ["json", "png_cropped"];      // blocking artifacts
+    const NICE_TO_HAVE = ["png_uncropped", "svg"];  // non-blocking artifacts
+    const MAX_RETRIES = 5;
+    const BASE_DELAY_MS = 600;
+    const JITTER_MS = 250;
+    const MIN_SPINNER_MS = 1500; // keep overlay for at least this long
 
-    // -------- Helpers --------
+    // -------- Params / naming --------
     const params = (window.VE && VE.parseParams) ? VE.parseParams() : { p:"", s:"", t:"", i:"0" };
-
     const pad2 = (n)=> String(n).padStart(2,"0");
     const now = new Date();
     const saveTime = `${String(now.getFullYear()).slice(-2)}${pad2(now.getMonth()+1)}${pad2(now.getDate())}${pad2(now.getHours())}${pad2(now.getMinutes())}`;
-
     const sessionTime = params.s || "";
     const participant = params.p || "";
     const idx = Math.max(0, parseInt(params.i || "0", 10) || 0);
@@ -784,40 +811,31 @@ class DrawingApp {
     const baseName = `saveTime_${saveTime}__sessionTime_${sessionTime}__participant_${participant}__trialN_${trialN}__trialT_${trialT}`;
 
     const toBlobAsync = (canvas, type="image/png", quality=0.92) => new Promise((res, rej)=>{
-        try {
-        canvas.toBlob(b => b ? res(b) : rej(new Error("toBlob returned null")), type, quality);
-        } catch (e) { rej(e); }
+        try { canvas.toBlob(b => b ? res(b) : rej(new Error("toBlob returned null")), type, quality); }
+        catch (e) { rej(e); }
     });
 
-    const backoff = (attempt) => {
-        // attempt: 1..MAX_RETRIES
-        const expo = Math.pow(2, attempt - 1);
-        const jitter = Math.floor(Math.random() * JITTER_MS);
-        return BASE_DELAY_MS * expo + jitter;
-    };
+    const backoff = (attempt) => BASE_DELAY_MS * Math.pow(2, attempt - 1) + Math.floor(Math.random() * JITTER_MS);
 
-    const uploadWithRetry = async (blob, fileName, kind) => {
+    const uploadWithRetry = async (blob, fileName, kind, mode/*"image"|"raw"*/) => {
         let lastErr = null;
         for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         try {
-            const res = await uploadToCloudinary(blob, fileName);
-            // Basic sanity checks (Cloudinary success usually includes 'secure_url' or 'public_id')
-            if (res && (res.secure_url || res.url || res.public_id)) {
-            return { ok: true, response: res };
-            }
+            const res = (mode === "raw")
+            ? await uploadRawToCloudinary(blob, fileName)
+            : await uploadImageToCloudinary(blob, fileName);
+            if (res && (res.secure_url || res.url || res.public_id)) return { ok:true, response:res };
             throw new Error(`Cloudinary response missing URL/public_id for ${kind}`);
         } catch (err) {
             lastErr = err;
             console.warn(`[upload retry ${attempt}/${MAX_RETRIES}] ${kind}`, err);
-            if (attempt < MAX_RETRIES) {
-            await new Promise(r => setTimeout(r, backoff(attempt)));
-            }
+            if (attempt < MAX_RETRIES) await new Promise(r => setTimeout(r, backoff(attempt)));
         }
         }
-        return { ok: false, error: lastErr };
+        return { ok:false, error:lastErr };
     };
 
-    // Require sliders adjusted at least once; show your existing popup if not
+    // Require sliders adjusted at least once; show popup if not
     const required = ['background', 'brushColor', 'blur', 'thickness'];
     const unmoved = required.filter(k => !this._sliderAdjusted[k]);
     if (!this._finishPopupShown && unmoved.length > 0) {
@@ -826,7 +844,7 @@ class DrawingApp {
         return;
     }
 
-    // Block any accidental back/close during saving
+    // Block accidental close/back while saving
     const beforeUnloadHandler = (e) => { e.preventDefault(); e.returnValue = ""; };
     window.addEventListener("beforeunload", beforeUnloadHandler);
 
@@ -836,7 +854,7 @@ class DrawingApp {
 
     try {
         // ---------- Build artifacts ----------
-        // JSON (state + viewport)
+        // JSON (state + viewport) — must-have (RAW upload)
         let jsonBlob;
         try {
         const exportState = this.deepCopy(this.state);
@@ -851,11 +869,10 @@ class DrawingApp {
         };
         jsonBlob = new Blob([JSON.stringify(exportState, null, 2)], { type: 'application/json' });
         } catch (e) {
-        // JSON is must-have; if we can't serialize, do not proceed
         throw new Error("Failed to serialize JSON state: " + (e?.message || e));
         }
 
-        // CROPPED PNG (viewport) — must-have
+        // CROPPED PNG — must-have (IMAGE upload)
         let croppedBlob;
         try {
         const { sx, sy, sw, sh, viewportRect: vpRect } = this.getViewportCropRect();
@@ -869,7 +886,7 @@ class DrawingApp {
         throw new Error("Failed to build cropped PNG: " + (e?.message || e));
         }
 
-        // UNCROPPED PNG — nice-to-have
+        // UNCROPPED PNG — nice-to-have (IMAGE upload)
         let fullPngBlob = null;
         try {
         const offFull = this.renderToTempCanvas(null);
@@ -878,7 +895,7 @@ class DrawingApp {
         console.warn("Uncropped PNG generation failed (will continue):", e);
         }
 
-        // SVG — nice-to-have
+        // SVG — nice-to-have (IMAGE upload; Cloudinary treats SVG as image)
         let svgBlob = null;
         try {
         const svgData = this.exportSVG(this.state.paths, this.canvas.width, this.canvas.height, this.state.background);
@@ -887,46 +904,35 @@ class DrawingApp {
         console.warn("SVG generation failed (will continue):", e);
         }
 
-        // ---------- Upload sequence ----------
-        // Upload must-have first, sequentially (so acks are definitive before moving on)
+        // ---------- Upload must-have (sequential) ----------
         const mustHaveMap = {
-        json: { blob: jsonBlob, name: `${baseName}__fileType_json.json` },
-        png_cropped: { blob: croppedBlob, name: `${baseName}__fileType_cropped.png` }
+        json:       { blob: jsonBlob,   name: `${baseName}__fileType_json.json`,     mode:"raw"   },
+        png_cropped:{ blob: croppedBlob, name: `${baseName}__fileType_cropped.png`,  mode:"image" }
         };
 
         for (const kind of MUST_HAVE) {
-        const { blob, name } = mustHaveMap[kind];
-        const result = await uploadWithRetry(blob, name, kind);
+        const spec = mustHaveMap[kind];
+        const result = await uploadWithRetry(spec.blob, spec.name, kind, spec.mode);
         if (!result.ok) {
-            // Hard stop: do not navigate
             console.error(`Must-have upload failed: ${kind}`, result.error);
             throw new Error(`Critical upload failed (${kind}).`);
         }
         }
 
-        // Upload nice-to-have in parallel (don’t block navigation outcome)
+        // ---------- Upload nice-to-have (parallel, non-blocking) ----------
         const niceJobs = [];
-        if (fullPngBlob) {
-        niceJobs.push(uploadWithRetry(fullPngBlob, `${baseName}__fileType_uncropped.png`, "png_uncropped"));
-        }
-        if (svgBlob) {
-        niceJobs.push(uploadWithRetry(svgBlob, `${baseName}__fileType_svg.svg`, "svg"));
-        }
-        // Fire and await, but errors here don’t block success path; we just log
+        if (fullPngBlob) niceJobs.push(uploadWithRetry(fullPngBlob, `${baseName}__fileType_uncropped.png`, "png_uncropped", "image"));
+        if (svgBlob)     niceJobs.push(uploadWithRetry(svgBlob,     `${baseName}__fileType_svg.svg`,        "svg",           "image"));
         if (niceJobs.length) {
         const niceResults = await Promise.all(niceJobs);
-        niceResults.forEach((r, idx) => {
-            if (!r.ok) console.warn("Nice-to-have upload failed:", r.error || r);
-        });
+        niceResults.forEach(r => { if (!r.ok) console.warn("Nice-to-have upload failed:", r.error || r); });
         }
 
-        // ---------- Delay to keep overlay visible if desired ----------
+        // ---------- Keep overlay visible a minimum time ----------
         const elapsed = performance.now() - overlayStart;
-        if (elapsed < MIN_SPINNER_MS) {
-        await new Promise(r => setTimeout(r, MIN_SPINNER_MS - elapsed));
-        }
+        if (elapsed < MIN_SPINNER_MS) await new Promise(r => setTimeout(r, MIN_SPINNER_MS - elapsed));
 
-        // ---------- Navigate forward only after must-have success ----------
+        // ---------- Navigate forward ----------
         try {
         const r = (window.VE && VE.nextRoute) ? VE.nextRoute("drawing", params) : { page: "wait.html", params };
         if (typeof window.__VE_hideSaving === "function") window.__VE_hideSaving();
@@ -938,16 +944,14 @@ class DrawingApp {
         }
         } catch (navErr) {
         console.error("Navigation failed after save:", navErr);
-        // Keep overlay hidden but remain on page so a researcher can intervene
         window.removeEventListener("beforeunload", beforeUnloadHandler);
+        // Overlay stays hidden; remain on page for researcher to intervene
         }
 
     } catch (fatal) {
-        // Any fatal error means we DO NOT navigate; we keep the overlay shown.
-        // Researcher can use dev override (Next button in dev mode) to proceed if needed.
+        // Any fatal error = DO NOT navigate. Keep overlay up so a researcher sees the issue.
         console.error("Fatal saving error (not navigating):", fatal);
-        // Optionally, you could re-enable UI controls here if you want an explicit retry button in your app UI.
-        // Intentionally not hiding overlay to signal "needs researcher attention".
+        // (Optionally re-enable specific UI controls for a retry button you add later.)
     }
     }
 
