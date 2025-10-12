@@ -210,6 +210,7 @@ class DrawingApp {
             thickness: false
         };
         this._finishPopupShown = false;
+        this._modalOpen = false;
     }
 
     /* ---------- new 2D matrix helper for ipad compatability ---------- */
@@ -1485,7 +1486,11 @@ class DrawingApp {
 
         return inMargin && !inControls;
     }
+
     globalPointerDown(e) {
+        // >>> NEW: ignore drawing starts when a modal is open <<<
+        if (this._modalOpen) return;
+
         // Start global drawing only when in draw/erase mode and not clicking UI
         if (!(this.state.tool === 'draw' || this.state.tool === 'erase')) return;
         if (this.isUIElement(e.target)) return;
@@ -1505,12 +1510,13 @@ class DrawingApp {
             if (e.pointerId && this.canvas.setPointerCapture) {
                 try {
                     this.canvas.setPointerCapture(e.pointerId);
-                } catch (err) { }
+                } catch (err) { /* noop */ }
             }
 
             this.pointers[e.pointerId || 'global'] = { x: pos.x, y: pos.y, pointerType: e.pointerType };
         }
     }
+
 
     renderDrawing(ctx, width, height, state, paths, drawing, currentPath) {
         this.doDrawingPipeline(ctx, width, height, state, paths, drawing, currentPath);
@@ -1709,6 +1715,9 @@ class DrawingApp {
 
         // Prevent page scroll when drawing with touch outside the viewport/canvas
         document.addEventListener('touchstart', (e) => {
+            // >>> NEW: don't block taps while a modal is open <<<
+            if (this._modalOpen) return;
+
             if (this.state.tool === 'draw' || this.state.tool === 'erase') {
                 // Use a slightly larger margin to catch near-canvas touches
                 if (this.isInCanvasMarginArea(e, 120)) {
@@ -1716,8 +1725,12 @@ class DrawingApp {
                 }
             }
         }, { passive: false });
+
         // Optionally, also prevent scroll on touchmove if desired
         document.addEventListener('touchmove', (e) => {
+            // >>> NEW: don't block gestures while a modal is open <<<
+            if (this._modalOpen) return;
+
             if (this.state.tool === 'draw' || this.state.tool === 'erase') {
                 if (this.isInCanvasMarginArea(e, 120)) {
                     e.preventDefault();
@@ -1734,6 +1747,7 @@ class DrawingApp {
             // For two-finger tap tracking
             fingers: {} // pointerId -> {startX, startY, startTime, endTime, moved}
         };
+
         // --- Touch event listeners for robust double-tap detection ---
         this.canvas.addEventListener('touchstart', (e) => {
             const now = Date.now();
@@ -1759,6 +1773,7 @@ class DrawingApp {
                 }
             }
         }, { passive: true });
+
         this.canvas.addEventListener('touchmove', (e) => {
             // If any finger moves too much, mark as moved
             for (let i = 0; i < e.changedTouches.length; i++) {
@@ -1773,6 +1788,7 @@ class DrawingApp {
                 }
             }
         }, { passive: true });
+
         this.canvas.addEventListener('touchend', (e) => {
 
             // Early-return: when not in 'move' tool we don't need to run the
@@ -1786,7 +1802,6 @@ class DrawingApp {
                 return;
             }
 
-
             const now = Date.now();
             // Mark endTime for each finger
             for (let i = 0; i < e.changedTouches.length; i++) {
@@ -1796,7 +1811,6 @@ class DrawingApp {
                     f.endTime = now;
                 }
             }
-
 
             // Only proceed if all fingers are lifted
             if (e.touches.length === 0) {
@@ -1817,11 +1831,9 @@ class DrawingApp {
                             this._doubleTapState.lastTapType === 1
                         ) {
                             // One-finger double-tap detected: reset translation (only in move tool)
-
                             this.state.offsetX = 0;
                             this.state.offsetY = 0;
                             this.scheduleRedraw();
-
                         }
                         // Record this tap
                         this._doubleTapState.lastTapTime = now;
@@ -1872,6 +1884,7 @@ class DrawingApp {
         }, { passive: true });
     }
 
+
     showFinishPopup(unmoved) {
         // unmoved: array of slider keys not yet moved
         const sliderNames = {
@@ -1903,6 +1916,14 @@ class DrawingApp {
         overlay.style.alignItems = 'center';
         overlay.style.justifyContent = 'center';
         overlay.style.zIndex = '9999';
+        // >>> NEW: prevent default gestures under overlay <<<
+        overlay.style.touchAction = 'none';
+
+        // >>> NEW: mark modal open and stop events from bubbling to document handlers <<<
+        this._modalOpen = true;
+        overlay.addEventListener('pointerdown', (e) => e.stopPropagation(), { passive: true });
+        overlay.addEventListener('touchstart',  (e) => e.stopPropagation(), { passive: true });
+
         // Popup box
         const box = document.createElement('div');
         box.style.background = '#fff';
@@ -1912,6 +1933,7 @@ class DrawingApp {
         box.style.fontSize = '1.2em';
         box.style.textAlign = 'center';
         box.innerText = msg;
+
         // OK button
         const btn = document.createElement('button');
         btn.type = 'button'; // Prevent default submit behavior
@@ -1923,16 +1945,27 @@ class DrawingApp {
         btn.style.border = '1px solid #0074D9';
         btn.style.background = '#f0f8ff';
         btn.style.cursor = 'pointer';
-        btn.addEventListener('click', () => {
-            // Close popup. Keep _finishPopupShown = true so it doesn't reappear
-            // during this session after the first time the user saw it.
-            document.body.removeChild(overlay);
-        });
+
+        const close = () => {
+            this._modalOpen = false;              // >>> NEW
+            if (overlay.parentNode) {
+                overlay.parentNode.removeChild(overlay);
+            }
+        };
+
+        // >>> NEW: touch- and pen-friendly handlers, plus click as fallback <<<
+        btn.addEventListener('pointerup', close, { once: true });
+        btn.addEventListener('touchend', (e) => { e.preventDefault(); close(); }, { once: true });
+        btn.addEventListener('click', close, { once: true });
+
         box.appendChild(document.createElement('br'));
         box.appendChild(btn);
         overlay.appendChild(box);
         document.body.appendChild(overlay);
     }
+
+
+
 }
 
 function getSeedFromUrl() {
