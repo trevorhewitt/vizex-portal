@@ -31,21 +31,14 @@
       const inner = document.getElementById("welcomeInner");
       // Final-state render (no placeholder swap)
       inner.innerHTML = `
-        <h1 style="margin: 0 0 24px 0; font-size: clamp(32px, 6vw, 60px); font-weight: 700;">
-          Welcome back to The Vision Experiment,<br><br>
+        <center><h1 style="margin: 0 0 24px 0; font-size: clamp(32px, 6vw, 60px); font-weight: 700;">
+          Welcome back to the experiment,<br><br>
           <span style="display:block; font-size: clamp(40px, 8vw, 80px); margin-top: 8px;">${namePart}</span>
-        </h1>
+        </h1></center>
         <div class="wait-wrap" style="margin-top:16px;">
           <h1>WAIT</h1>
         </div>
         <p>Please wait. In a moment, the researcher will instruct you to proceed.</p>
-
-        <!-- Optional block/trial info you might want to keep -->
-        <div class="kv" style="margin-top:10px;">
-          <b>Block</b><span>${payload.blockNum}</span>
-          <b>Trial</b><span>${payload.trialText}</span>
-          <b>Trial type</b><span>${payload.typeLabel}</span>
-        </div>
       `;
 
       // Navigation + visibility
