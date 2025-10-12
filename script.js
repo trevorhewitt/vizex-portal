@@ -786,7 +786,7 @@ class DrawingApp {
     const MUST_HAVE = ["json", "png_cropped"];      // blocking artifacts
     const NICE_TO_HAVE = ["png_uncropped", "svg"];  // non-blocking artifacts
     const MAX_RETRIES = 5;
-    const BASE_DELAY_MS = 600;
+    const BASE_DELAY_MS = 200;
     const JITTER_MS = 250;
     const MIN_SPINNER_MS = 1500; // keep overlay for at least this long
 
