@@ -89,7 +89,11 @@ function sendEventSimulated(message){
   console.log("[Simulated Firebase] Sent message:", message);
   return { ok:true, message };
 }
-function esc(s){ return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;"," >":"&gt;",'"':"&quot;"}[c])); }
+function esc(s){
+  return String(s).replace(/[&<>"']/g, c => (
+    {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]
+  ));
+}
 
 /* ===================== TRIAL FLOW ===================== */
 function splitIntoBlocks(t){
@@ -132,13 +136,11 @@ function getCurrentTrialInfo(params){
   }};
 }
 
-/* ======= PAGES (flattened — no `/trials/`) ======= */
 function firstPageForTrial(info){
   return info.type.kind==="image" ? "image-stim.html" : "pre-drawing.html";
 }
 function isStartOfBlock(info){ return info.trialInBlock===0; }
 
-/* All route targets below are flattened */
 function nextRoute(currentPage, params){
   const { plan, idx, info } = getCurrentTrialInfo(params);
   if (!info || plan.totalTrials===0) return { page:"end.html", params };
@@ -184,38 +186,73 @@ function placeholderPayload(params){
   };
 }
 
-/* ===================== PAGE DISPATCH ===================== */
+/* ===================== HELPERS FOR CUSTOM PAGES ===================== */
+function computeNextTrialMessage(params){
+  // Lookahead one trial to decide message for WAIT pages
+  const iNow = (parseInt(params.i || "0", 10) || 0);
+  const nextParams = { ...params, i: String(iNow + 1) };
+  const wrap = getCurrentTrialInfo(nextParams);
+  const nxt = wrap && wrap.info;
+  if (!nxt) return `You are about to finish.`;
+  if (isStartOfBlock(nxt)) return `Please enjoy a short break.`;
+  const X = nxt.trialInBlock + 1;
+  const Y = nxt.trialsInBlock;
+  return `You will soon begin trial ${X} of ${Y}.`;
+}
+
+/* expose helpers for custom pages */
+window.VE = {
+  parseParams, goto, nextRoute, backRoute,
+  setupNavVisibility, renderDevFooter, sendEventSimulated,
+  placeholderPayload, computeNextTrialMessage, esc,
+  getCurrentTrialInfo, isStartOfBlock
+};
+
+/* ===================== PAGE DISPATCH (with custom render opt-out) ===================== */
 document.addEventListener("DOMContentLoaded", () => {
   const page = (document.body.dataset.page||"").trim();
   const params = parseParams();
-  setupPage(page, params);
+  const renderMode = (document.body.dataset.render || "auto").toLowerCase(); // "auto" | "custom"
+
+  if (renderMode === "custom") {
+    // Do NOT inject any HTML. Still wire nav visibility & dev footer if buttons/containers exist.
+    bindNavForPage(page, params);
+    renderDevFooter(params, "");
+    return;
+  }
+
+  // Default auto-render behavior (keeps all existing pages working as before)
+  setupPageAuto(page, params);
 });
 
-function setupPage(page, params){
+/* === auto-render content (default) === */
+function setupPageAuto(page, params){
   switch(page){
 
     /* -------- index (parameters input) -------- */
     case "index": {
       const sel = document.getElementById("sessionSelect");
-      SESSIONS.forEach(([name, code])=>{
-        const opt=document.createElement("option"); opt.value=code; opt.textContent=name; sel.appendChild(opt);
-      });
-      // prefill if present
-      if (params.s) sel.value = params.s;
-      if (params.n) document.getElementById("nameInput").value = params.n;
-      if (params.p) document.getElementById("codeInput").value = params.p;
-      if (typeof params.t==="string") document.getElementById("orderInput").value = params.t;
-      if (params.i) document.getElementById("indexInput").value = params.i;
-      if (params.m) document.getElementById("modeSelect").value = params.m;
+      if (sel) {
+        SESSIONS.forEach(([name, code])=>{
+          const opt=document.createElement("option"); opt.value=code; opt.textContent=name; sel.appendChild(opt);
+        });
+        if (params.s) sel.value = params.s;
+      }
+      if (params.n && document.getElementById("nameInput")) document.getElementById("nameInput").value = params.n;
+      if (params.p && document.getElementById("codeInput")) document.getElementById("codeInput").value = params.p;
+      if (typeof params.t==="string" && document.getElementById("orderInput")) document.getElementById("orderInput").value = params.t;
+      if (params.i && document.getElementById("indexInput")) document.getElementById("indexInput").value = params.i;
+      if (params.m && document.getElementById("modeSelect")) document.getElementById("modeSelect").value = params.m;
 
-      document.getElementById("nextBtn").addEventListener("click", ()=>{
+      const nextBtn = document.getElementById("nextBtn");
+      if (nextBtn) nextBtn.addEventListener("click", ()=>{
         const nextParams = {
-          p: document.getElementById("codeInput").value.trim(),
-          n: document.getElementById("nameInput").value.trim(),
-          s: document.getElementById("sessionSelect").value,
-          t: document.getElementById("orderInput").value.trim(),
-          i: String(parseInt(document.getElementById("indexInput").value||"0",10)||0),
-          m: document.getElementById("modeSelect").value
+          p: (document.getElementById("codeInput")?.value || "").trim(),
+          n: (document.getElementById("nameInput")?.value || "").trim(),
+          s: document.getElementById("sessionSelect")?.value || "",
+          t: (document.getElementById("orderInput")?.value || "").trim(),
+          i: String(parseInt(document.getElementById("indexInput")?.value || "0",10)||0),
+          m: document.getElementById("modeSelect")?.value || "0"
         };
         goto("param-check.html", nextParams);
       });
@@ -227,19 +264,17 @@ function setupPage(page, params){
     case "param-check": {
       const sum = document.getElementById("summary");
       const sessionName = sessionCodeToDisplay(params.s) || "(unknown session)";
-      sum.innerHTML = `
-        <b>Session</b><span>${sessionName} — ${params.s || "(empty)"}</span>
-        <b>Display name</b><span>${params.n || "(empty)"}</span>
-        <b>Participant code</b><span>${params.p || "(empty)"}</span>
-        <b>Trial order</b><span>${typeof params.t==="string" ? (params.t||"(empty)") : "(empty)"} </span>
-        <b>Current trial index</b><span>${params.i || "0"}</span>
-        <b>Mode</b><span>${params.m==="1" ? "DEV (m=1)" : "EXPERIMENT (m=0)"}</span>
-      `;
-      document.getElementById("backBtn").addEventListener("click", ()=> goto("index.html", params));
-      document.getElementById("nextBtn").addEventListener("click", ()=>{
-        const r = nextRoute("param-check", params);
-        goto(r.page, r.params);
-      });
+      if (sum) {
+        sum.innerHTML = `
+          <b>Session</b><span>${sessionName} — ${params.s || "(empty)"}</span>
+          <b>Display name</b><span>${params.n || "(empty)"}</span>
+          <b>Participant code</b><span>${params.p || "(empty)"}</span>
+          <b>Trial order</b><span>${typeof params.t==="string" ? (params.t||"(empty)") : "(empty)"} </span>
+          <b>Current trial index</b><span>${params.i || "0"}</span>
+          <b>Mode</b><span>${params.m==="1" ? "DEV (m=1)" : "EXPERIMENT (m=0)"}</span>
+        `;
+      }
+      bindNavForPage("param-check", params);
       setupNavVisibility(params, {allowBack:true});
       renderDevFooter(params, "");
       break;
@@ -248,70 +283,67 @@ function setupPage(page, params){
     /* -------- welcome (block header) -------- */
     case "welcome": {
       const inner = document.getElementById("welcomeInner");
-      const payload = placeholderPayload(params);
-      const name = params.n ? `, ${esc(params.n)}` : "";
-      inner.innerHTML = `
-        <h1>Welcome back to The Vision Experiment${name}</h1>
-        <div class="kv" style="margin-top:10px;">
-          <b>Block</b><span>${payload.blockNum}</span>
-          <b>Trial</b><span>${payload.trialText}</span>
-          <b>Trial type</b><span>${payload.typeLabel}</span>
-        </div>
-        <div class="wait-wrap" style="margin-top:16px;">
-          <h1>WAIT</h1>
-        </div>
-        <p>Please wait. In a moment, the researcher will instruct you to proceed.</p>
-      `;
-      const message = "experiment setup";
-      const result = sendEventSimulated(message);
-      document.getElementById("backBtn").addEventListener("click", ()=>{
-        const r = backRoute("welcome", params);
-        goto(r.page, r.params);
-      });
-      document.getElementById("nextBtn").addEventListener("click", ()=>{
-        const r = nextRoute("welcome", params);
-        goto(r.page, r.params);
-      });
+      if (inner) {
+        const payload = placeholderPayload(params);
+        const name = params.n ? `, ${esc(params.n)}` : "";
+        inner.innerHTML = `
+          <h1>Welcome back to The Vision Experiment${name}</h1>
+          <div class="kv" style="margin-top:10px;">
+            <b>Block</b><span>${payload.blockNum}</span>
+            <b>Trial</b><span>${payload.trialText}</span>
+            <b>Trial type</b><span>${payload.typeLabel}</span>
+          </div>
+          <div class="wait-wrap" style="margin-top:16px;">
+            <h1>WAIT</h1>
+          </div>
+          <p>Please wait. In a moment, the researcher will instruct you to proceed.</p>
+        `;
+      }
+      const result = sendEventSimulated("experiment setup");
+      bindNavForPage("welcome", params);
       setupNavVisibility(params, {allowBack:false});
-      renderDevFooter(params, result.ok ? message : "(failed)");
+      renderDevFooter(params, result.ok ? "experiment setup" : "(failed)");
       break;
     }
 
-    /* -------- placeholders: image-stim / pre-drawing / drawing / wait -------- */
+    /* -------- image-stim / pre-drawing / drawing / wait -------- */
     case "image-stim":
     case "pre-drawing":
     case "drawing":
     case "wait": {
       const root = document.getElementById("root");
-      const p = placeholderPayload(params);
-      const titleMap = {
-        "image-stim": "Placeholder — IMAGE_STIM",
-        "pre-drawing": "Placeholder — PRE_DRAWING",
-        "drawing": "Placeholder — DRAWING",
-        "wait": "Placeholder — WAIT"
-      };
-      const extraWait = page==="wait" ? `
-        <div class="wait-wrap" style="margin-top:16px;"><h1>WAIT</h1></div>
-        <p>Please wait. In a moment, the researcher will instruct you to proceed.</p>
-      ` : "";
-      root.innerHTML = `
-        <h1>${titleMap[page]}</h1>
-        <div class="kv">
-          <b>Trial</b><span>${p.trialText}</span>
-          <b>Block</b><span>${p.blockNum}</span>
-          <b>Trial type</b><span>${p.typeLabel}</span>
-        </div>
-        ${extraWait}
-      `;
-      document.getElementById("backBtn").addEventListener("click", ()=>{
-        const r = backRoute(page, params);
-        goto(r.page, r.params);
-      });
-      document.getElementById("nextBtn").addEventListener("click", ()=>{
-        const r = nextRoute(page, params);
-        goto(r.page, r.params);
-      });
-      // Drawing: no back in experiment; others allow back
+      if (root) {
+        const p = placeholderPayload(params);
+        const titleMap = {
+          "image-stim": "Placeholder — IMAGE_STIM",
+          "pre-drawing": "Placeholder — PRE_DRAWING",
+          "drawing": "Placeholder — DRAWING",
+          "wait": "WAIT"
+        };
+
+        let extraHtml = "";
+        if (page==="wait") {
+          const msg = computeNextTrialMessage(params);
+          extraHtml = `
+            <div class="wait-wrap" style="margin-top:16px;"><h1>WAIT</h1></div>
+            <p>${msg}</p>
+          `;
+        } else {
+          extraHtml = `
+            <div class="kv">
+              <b>Trial</b><span>${p.trialText}</span>
+              <b>Block</b><span>${p.blockNum}</span>
+              <b>Trial type</b><span>${p.typeLabel}</span>
+            </div>
+          `;
+        }
+
+        root.innerHTML = `
+          <h1>${titleMap[page]}</h1>
+          ${extraHtml}
+        `;
+      }
+      bindNavForPage(page, params);
       const allowBack = (page==="drawing") ? hasDev(params) : true;
       setupNavVisibility(params, {allowBack});
       renderDevFooter(params, "");
@@ -322,23 +354,43 @@ function setupPage(page, params){
     case "end": {
       const root = document.getElementById("root");
       const { plan } = getCurrentTrialInfo(params);
-      root.innerHTML = `
-        <h1>END</h1>
-        <p>All trials completed (${plan.totalTrials}).</p>
-      `;
-      document.getElementById("backBtn").addEventListener("click", ()=>{
-        const r = backRoute("end", params);
-        goto(r.page, r.params);
-      });
-      document.getElementById("restartBtn").addEventListener("click", (e)=>{
-        e.preventDefault();
-        goto("param-check.html", params);
-      });
+      if (root) {
+        root.innerHTML = `
+          <h1>END</h1>
+          <p>All trials completed (${plan.totalTrials}).</p>
+        `;
+      }
+      bindNavForPage("end", params);
       setupNavVisibility(params, {allowBack:true});
       renderDevFooter(params, "experiment finished");
       break;
     }
 
-    default: break;
+    default: {
+      // Unknown page: still try to wire nav and footer
+      bindNavForPage(page, params);
+      renderDevFooter(params, "");
+      break;
+    }
   }
+}
+
+/* === shared binding for Back/Next with null-safety === */
+function bindNavForPage(currentPage, params){
+  const backBtn = document.getElementById("backBtn");
+  const nextBtn = document.getElementById("nextBtn");
+  const restartBtn = document.getElementById("restartBtn");
+
+  if (backBtn) backBtn.addEventListener("click", ()=>{
+    const r = backRoute(currentPage, params);
+    goto(r.page, r.params);
+  });
+  if (nextBtn) nextBtn.addEventListener("click", ()=>{
+    const r = nextRoute(currentPage, params);
+    goto(r.page, r.params);
+  });
+  if (restartBtn) restartBtn.addEventListener("click", (e)=>{
+    e.preventDefault();
+    goto("param-check.html", params);
+  });
 }
