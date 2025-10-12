@@ -741,104 +741,217 @@ class DrawingApp {
     }
 
     /* ---------- Save / Export / Import ---------- */
-    onSave() {
-        const params = (window.VE && VE.parseParams) ? VE.parseParams() : { p:"", s:"", t:"", i:"0" };
+    
+    // Drop-in replacement for the DrawingApp class method
+    // Requires: window.VE (util.js), window.__VE_showSaving / __VE_hideSaving helpers,
+    //           and an uploadToCloudinary(blob, fileName) function (your snippet).
+    // Guarantees:
+    // - Saves "must-have" artifacts (JSON + CROPPED PNG) to Cloudinary BEFORE navigating.
+    // - Also attempts "nice-to-have" artifacts (UNCROPPED PNG + SVG), but navigation
+    //   does not depend on them.
+    // - Retries uploads with exponential backoff. If must-have uploads never succeed,
+    //   the page stays on the saving overlay and DOES NOT advance.
 
-        // Require sliders adjusted at least once; show your existing popup if not
-        const required = ['background', 'brushColor', 'blur', 'thickness'];
-        const unmoved = required.filter(k => !this._sliderAdjusted[k]);
-        if (!this._finishPopupShown && unmoved.length > 0) {
-            this._finishPopupShown = true;
-            this.showFinishPopup(unmoved);
-            return;
+    async onSave() {
+    // -------- Config (tune if needed) --------
+    const MUST_HAVE = ["json", "png_cropped", "svg"];      // blocking artifacts
+    const NICE_TO_HAVE = ["png_uncropped"];  // non-blocking artifacts
+    const MAX_RETRIES = 5;                          // per-file attempts
+    const BASE_DELAY_MS = 600;                      // backoff base
+    const JITTER_MS = 250;                          // small random jitter
+    const MIN_SPINNER_MS = 1500;                    // minimum overlay time (ms) after start
+
+    // -------- Helpers --------
+    const params = (window.VE && VE.parseParams) ? VE.parseParams() : { p:"", s:"", t:"", i:"0" };
+
+    const pad2 = (n)=> String(n).padStart(2,"0");
+    const now = new Date();
+    const saveTime = `${String(now.getFullYear()).slice(-2)}${pad2(now.getMonth()+1)}${pad2(now.getDate())}${pad2(now.getHours())}${pad2(now.getMinutes())}`;
+
+    const sessionTime = params.s || "";
+    const participant = params.p || "";
+    const idx = Math.max(0, parseInt(params.i || "0", 10) || 0);
+    const trialN = String(idx + 1);
+
+    let trialT = "";
+    try {
+        const wrap = (window.VE && VE.getCurrentTrialInfo) ? VE.getCurrentTrialInfo(params) : null;
+        trialT = wrap && wrap.info ? String(wrap.info.code || "") : "";
+    } catch(e){ /* noop */ }
+    if (!trialT && typeof params.t === "string" && params.t.length > idx) trialT = params.t.charAt(idx);
+    if (!trialT) trialT = "UNK";
+
+    const baseName = `saveTime_${saveTime}__sessionTime_${sessionTime}__participant_${participant}__trialN_${trialN}__trialT_${trialT}`;
+
+    const toBlobAsync = (canvas, type="image/png", quality=0.92) => new Promise((res, rej)=>{
+        try {
+        canvas.toBlob(b => b ? res(b) : rej(new Error("toBlob returned null")), type, quality);
+        } catch (e) { rej(e); }
+    });
+
+    const backoff = (attempt) => {
+        // attempt: 1..MAX_RETRIES
+        const expo = Math.pow(2, attempt - 1);
+        const jitter = Math.floor(Math.random() * JITTER_MS);
+        return BASE_DELAY_MS * expo + jitter;
+    };
+
+    const uploadWithRetry = async (blob, fileName, kind) => {
+        let lastErr = null;
+        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+            const res = await uploadToCloudinary(blob, fileName);
+            // Basic sanity checks (Cloudinary success usually includes 'secure_url' or 'public_id')
+            if (res && (res.secure_url || res.url || res.public_id)) {
+            return { ok: true, response: res };
+            }
+            throw new Error(`Cloudinary response missing URL/public_id for ${kind}`);
+        } catch (err) {
+            lastErr = err;
+            console.warn(`[upload retry ${attempt}/${MAX_RETRIES}] ${kind}`, err);
+            if (attempt < MAX_RETRIES) {
+            await new Promise(r => setTimeout(r, backoff(attempt)));
+            }
         }
+        }
+        return { ok: false, error: lastErr };
+    };
 
-        // Filename schema parts
-        const pad = (n)=> String(n).padStart(2, "0");
-        const now = new Date();
-        const YY = String(now.getFullYear()).slice(-2);
-        const MM = pad(now.getMonth()+1);
-        const DD = pad(now.getDate());
-        const hh = pad(now.getHours());
-        const mm = pad(now.getMinutes());
-        const saveTime = `${YY}${MM}${DD}${hh}${mm}`;
-        const sessionTime = params.s || "";
-        const participant = params.p || "";
-        const idx = Math.max(0, parseInt(params.i || "0", 10) || 0);
-        const trialN = String(idx + 1);
+    // Require sliders adjusted at least once; show your existing popup if not
+    const required = ['background', 'brushColor', 'blur', 'thickness'];
+    const unmoved = required.filter(k => !this._sliderAdjusted[k]);
+    if (!this._finishPopupShown && unmoved.length > 0) {
+        this._finishPopupShown = true;
+        this.showFinishPopup(unmoved);
+        return;
+    }
 
-        // Trial code/type (single char) from VE plan (fallback to t[i])
-        let trialT = "";
+    // Block any accidental back/close during saving
+    const beforeUnloadHandler = (e) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", beforeUnloadHandler);
+
+    // Show overlay
+    const overlayStart = performance.now();
+    if (typeof window.__VE_showSaving === "function") window.__VE_showSaving();
+
+    try {
+        // ---------- Build artifacts ----------
+        // JSON (state + viewport)
+        let jsonBlob;
         try {
-            const wrap = (window.VE && VE.getCurrentTrialInfo) ? VE.getCurrentTrialInfo(params) : null;
-            trialT = wrap && wrap.info ? String(wrap.info.code || "") : "";
-        } catch(e){ trialT = ""; }
-        if (!trialT && typeof params.t === "string" && params.t.length > idx) trialT = params.t.charAt(idx);
-        if (!trialT) trialT = "UNK";
-
-        const baseName = `saveTime_${saveTime}__sessionTime_${sessionTime}__participant_${participant}__trialN_${trialN}__trialT_${trialT}`;
-
-        // Show a text-free saving overlay
-        if (typeof window.__VE_showSaving === "function") window.__VE_showSaving();
-
-        // ----- Exports -----
-        // JSON
-        try {
-            const exportState = this.deepCopy(this.state);
-            exportState.canvasWidth  = this.canvas.width;
-            exportState.canvasHeight = this.canvas.height;
-            const viewportRect = this.getViewportRect(this.canvas);
-            exportState.viewport = {
+        const exportState = this.deepCopy(this.state);
+        exportState.canvasWidth  = this.canvas.width;
+        exportState.canvasHeight = this.canvas.height;
+        const viewportRect = this.getViewportRect(this.canvas);
+        exportState.viewport = {
             centerX: viewportRect.centerX,
             centerY: viewportRect.centerY,
             width: viewportRect.normDivX * 2,
             height: viewportRect.normDivY * 2
-            };
-            const jsonBlob = new Blob([JSON.stringify(exportState, null, 2)], { type: 'application/json' });
-            this.downloadBlob(jsonBlob, `${baseName}__fileType_json.json`);
-        } catch(e){ console.error("JSON export failed:", e); }
-
-        // Uncropped PNG
-        try {
-            const offFull = this.renderToTempCanvas(null);
-            this.downloadCanvas(offFull, `${baseName}__fileType_uncropped.png`);
-        } catch(e){ console.error("Uncropped PNG failed:", e); }
-
-        // Cropped PNG (viewport)
-        try {
-            const { sx, sy, sw, sh, viewportRect: vpRect } = this.getViewportCropRect();
-            const tmp = this.renderToTempCanvas(vpRect);
-            const out = document.createElement('canvas');
-            out.width = sw; out.height = sh;
-            const c2 = out.getContext('2d');
-            c2.drawImage(tmp, sx, sy, sw, sh, 0, 0, sw, sh);
-            this.downloadCanvas(out, `${baseName}__fileType_cropped.png`);
-        } catch(e){ console.error("Cropped PNG failed:", e); }
-
-        // SVG (uncropped)
-        try {
-            const svgData = this.exportSVG(this.state.paths, this.canvas.width, this.canvas.height, this.state.background);
-            const svgBlob = new Blob([svgData], { type: 'image/svg+xml' });
-            this.downloadBlob(svgBlob, `${baseName}__fileType_svg.svg`);
-        } catch(e){ console.error("SVG export failed:", e); }
-
-        // Proceed to next page after download triggers have fired
-        const proceed = () => {
-            try {
-            const r = (window.VE && VE.nextRoute) ? VE.nextRoute("drawing", params) : { page: "wait.html", params };
-            if (typeof window.__VE_hideSaving === "function") window.__VE_hideSaving();
-            if (window.VE && VE.goto) VE.goto(r.page, r.params);
-            else {
-                const q = (window.VE && VE.buildQuery) ? VE.buildQuery(r.params) : "";
-                location.href = q ? `${r.page}?${q}` : r.page;
-            }
-            } catch(e){
-            console.error("Navigation failed:", e);
-            if (typeof window.__VE_hideSaving === "function") window.__VE_hideSaving();
-            }
         };
-        setTimeout(proceed, 600); // small delay to ensure downloads dispatch
+        jsonBlob = new Blob([JSON.stringify(exportState, null, 2)], { type: 'application/json' });
+        } catch (e) {
+        // JSON is must-have; if we can't serialize, do not proceed
+        throw new Error("Failed to serialize JSON state: " + (e?.message || e));
         }
+
+        // CROPPED PNG (viewport) — must-have
+        let croppedBlob;
+        try {
+        const { sx, sy, sw, sh, viewportRect: vpRect } = this.getViewportCropRect();
+        const tmp = this.renderToTempCanvas(vpRect);
+        const out = document.createElement('canvas');
+        out.width = sw; out.height = sh;
+        const c2 = out.getContext('2d');
+        c2.drawImage(tmp, sx, sy, sw, sh, 0, 0, sw, sh);
+        croppedBlob = await toBlobAsync(out, "image/png", 0.92);
+        } catch (e) {
+        throw new Error("Failed to build cropped PNG: " + (e?.message || e));
+        }
+
+        // UNCROPPED PNG — nice-to-have
+        let fullPngBlob = null;
+        try {
+        const offFull = this.renderToTempCanvas(null);
+        fullPngBlob = await toBlobAsync(offFull, "image/png", 0.92);
+        } catch (e) {
+        console.warn("Uncropped PNG generation failed (will continue):", e);
+        }
+
+        // SVG — nice-to-have
+        let svgBlob = null;
+        try {
+        const svgData = this.exportSVG(this.state.paths, this.canvas.width, this.canvas.height, this.state.background);
+        svgBlob = new Blob([svgData], { type: 'image/svg+xml' });
+        } catch (e) {
+        console.warn("SVG generation failed (will continue):", e);
+        }
+
+        // ---------- Upload sequence ----------
+        // Upload must-have first, sequentially (so acks are definitive before moving on)
+        const mustHaveMap = {
+        json: { blob: jsonBlob, name: `${baseName}__fileType_json.json` },
+        png_cropped: { blob: croppedBlob, name: `${baseName}__fileType_cropped.png` }
+        };
+
+        for (const kind of MUST_HAVE) {
+        const { blob, name } = mustHaveMap[kind];
+        const result = await uploadWithRetry(blob, name, kind);
+        if (!result.ok) {
+            // Hard stop: do not navigate
+            console.error(`Must-have upload failed: ${kind}`, result.error);
+            throw new Error(`Critical upload failed (${kind}).`);
+        }
+        }
+
+        // Upload nice-to-have in parallel (don’t block navigation outcome)
+        const niceJobs = [];
+        if (fullPngBlob) {
+        niceJobs.push(uploadWithRetry(fullPngBlob, `${baseName}__fileType_uncropped.png`, "png_uncropped"));
+        }
+        if (svgBlob) {
+        niceJobs.push(uploadWithRetry(svgBlob, `${baseName}__fileType_svg.svg`, "svg"));
+        }
+        // Fire and await, but errors here don’t block success path; we just log
+        if (niceJobs.length) {
+        const niceResults = await Promise.all(niceJobs);
+        niceResults.forEach((r, idx) => {
+            if (!r.ok) console.warn("Nice-to-have upload failed:", r.error || r);
+        });
+        }
+
+        // ---------- Delay to keep overlay visible if desired ----------
+        const elapsed = performance.now() - overlayStart;
+        if (elapsed < MIN_SPINNER_MS) {
+        await new Promise(r => setTimeout(r, MIN_SPINNER_MS - elapsed));
+        }
+
+        // ---------- Navigate forward only after must-have success ----------
+        try {
+        const r = (window.VE && VE.nextRoute) ? VE.nextRoute("drawing", params) : { page: "wait.html", params };
+        if (typeof window.__VE_hideSaving === "function") window.__VE_hideSaving();
+        window.removeEventListener("beforeunload", beforeUnloadHandler);
+        if (window.VE && VE.goto) VE.goto(r.page, r.params);
+        else {
+            const q = (window.VE && VE.buildQuery) ? VE.buildQuery(r.params) : "";
+            location.href = q ? `${r.page}?${q}` : r.page;
+        }
+        } catch (navErr) {
+        console.error("Navigation failed after save:", navErr);
+        // Keep overlay hidden but remain on page so a researcher can intervene
+        window.removeEventListener("beforeunload", beforeUnloadHandler);
+        }
+
+    } catch (fatal) {
+        // Any fatal error means we DO NOT navigate; we keep the overlay shown.
+        // Researcher can use dev override (Next button in dev mode) to proceed if needed.
+        console.error("Fatal saving error (not navigating):", fatal);
+        // Optionally, you could re-enable UI controls here if you want an explicit retry button in your app UI.
+        // Intentionally not hiding overlay to signal "needs researcher attention".
+    }
+    }
+
+
     onSave_old() {
         // If any required slider has not been adjusted, show popup
         const required = ['background', 'brushColor', 'blur', 'thickness'];
