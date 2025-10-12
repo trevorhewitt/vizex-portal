@@ -19,53 +19,5 @@
       </div>
     </div>
   </div>
-
-  <script>
-    // Run AFTER app.js has populated the page (ensures our override wins)
-    window.addEventListener("load", function () {
-      const params = parseParams();
-
-      // Compute the NEXT trial (lookahead)
-      const nextIndex = (parseInt(params.i || "0", 10) || 0) + 1;
-      const nextParams = { ...params, i: String(nextIndex) };
-      const wrap = getCurrentTrialInfo(nextParams);
-      const nxt = wrap && wrap.info;
-
-      let messageHtml = "";
-      if (!nxt) {
-        // Normally unreachable (drawing -> end if last), safe fallback
-        messageHtml = `<p>You are about to finish.</p>`;
-      } else if (isStartOfBlock(nxt)) {
-        messageHtml = `<p>Please enjoy a short break.</p>`;
-      } else {
-        const X = nxt.trialInBlock + 1;   // upcoming trial number within its block
-        const Y = nxt.trialsInBlock;      // total trials in that block
-        messageHtml = `<p>You will soon begin trial ${X} of ${Y}.</p>`;
-      }
-
-      // Replace ANY placeholder content injected by app.js
-      const root = document.getElementById("root");
-      root.innerHTML = `
-        <div class="wait-wrap"><h1>WAIT</h1></div>
-        ${messageHtml}
-      `;
-
-      // Hook up navigation (works with your existing flow helpers)
-      document.getElementById("backBtn").addEventListener("click", function () {
-        const r = backRoute("wait", params);
-        goto(r.page, r.params);
-      });
-      document.getElementById("nextBtn").addEventListener("click", function () {
-        const r = nextRoute("wait", params);
-        goto(r.page, r.params);
-      });
-
-      // Back hidden in experiment mode, visible in dev mode
-      setupNavVisibility(params, { allowBack: false });
-
-      // Keep dev footer (no Firebase event here)
-      renderDevFooter(params, "");
-    });
-  </script>
 </body>
 </html>

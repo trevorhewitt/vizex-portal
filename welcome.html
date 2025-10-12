@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="assets/style.css" />
   <script src="assets/app.js" defer></script>
 </head>
-<body data-page="welcome">
+<body data-page="welcome" data-render="custom">
   <div class="page">
     <div class="content">
       <div class="inner" id="welcomeInner"></div>
@@ -22,14 +22,14 @@
 
   <script>
     document.addEventListener("DOMContentLoaded", function () {
-      const params = parseParams();
-      const payload = placeholderPayload(params);
-      const name = params.n ? ", " + (typeof esc === "function" ? esc(params.n) : params.n) : "";
-      const inner = document.getElementById("welcomeInner");
+      const params = VE.parseParams();
+      const payload = VE.placeholderPayload(params);
+      const name = params.n ? ", " + VE.esc(params.n) : "";
 
+      const inner = document.getElementById("welcomeInner");
       inner.innerHTML = `
         <h1 style="margin: 0 0 24px 0; font-size: clamp(32px, 6vw, 60px); font-weight: 700;">
-          Welcome back to The Vision Experiment,<br><br>
+          Welcome back to The Vision Experiment<br><br>
           <span style="display:block; font-size: clamp(40px, 8vw, 80px); margin-top: 8px;">${name}</span>
         </h1>
         <div class="wait-wrap" style="margin-top:16px;">
@@ -38,22 +38,12 @@
         <p>Please wait. In a moment, the researcher will instruct you to proceed.</p>
       `;
 
-      // Inline handlers (works even if app.js doesn't bind these for welcome)
-      document.getElementById("backBtn").addEventListener("click", function () {
-        const r = backRoute("welcome", params);
-        goto(r.page, r.params);
-      });
-      document.getElementById("nextBtn").addEventListener("click", function () {
-        const r = nextRoute("welcome", params);
-        goto(r.page, r.params);
-      });
+      // Wire nav + visibility (no auto-injection from app.js on custom pages)
+      VE.setupNavVisibility(params, { allowBack: false });
 
-      // Hide back in Experiment mode; visible in Dev
-      setupNavVisibility(params, { allowBack: false });
-
-      // Show dev footer + simulated message
-      const res = sendEventSimulated("experiment setup");
-      renderDevFooter(params, res && res.ok ? "experiment setup" : "(failed)");
+      // Dev footer + simulated message
+      const res = VE.sendEventSimulated("experiment setup");
+      VE.renderDevFooter(params, res && res.ok ? "experiment setup" : "(failed)");
     });
   </script>
 </body>
