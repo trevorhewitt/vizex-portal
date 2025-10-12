@@ -19,7 +19,10 @@
       width:100%;
     }
     #appRoot .controls,
-    #appRoot #viewport { width: min(92vw, 700px); }
+    #appRoot #viewport {
+      width: 950px;   /* visual size on the tablet */
+      height: 950px;  /* must match width, to stay square */
+    }
 
     #appRoot { --ui-scale: 1.45; --slider-track-h: 40px; --slider-thumb-d: 30px; --thumb-border: 4px solid #005197; }
     #appRoot #viewport{
