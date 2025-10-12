@@ -18,15 +18,17 @@
       -ms-user-select:none;
       width:100%;
     }
-    #appRoot .controls,
+    /* visual size of the drawing box (square) */
     #appRoot #viewport {
-      width: 450px;   /* visual size on the tablet */
-      height: 450px;  /* must match width, to stay square */
+      --viewport-size: 450px;      /* tweak this for different tablets */
+      width: var(--viewport-size);
+      aspect-ratio: 1 / 1;         /* keeps it perfectly square */
+      height: auto;                 /* let aspect-ratio set the height */
     }
 
     #appRoot { --ui-scale: 1.45; --slider-track-h: 40px; --slider-thumb-d: 30px; --thumb-border: 4px solid #005197; }
     #appRoot #viewport{
-      height:calc(350px * var(--ui-scale));
+      /* no fixed height here; aspect-ratio handles it */
       overflow:hidden;
       border:2px solid green;
       position:relative;
@@ -37,8 +39,12 @@
     }
     #appRoot canvas{
       position:absolute;
-      width:950px; height:950px;
-      cursor:crosshair; touch-action:none; user-select:none;
+      inset:0;                /* anchor to container */
+      width:100%;             /* fill the square visually */
+      height:100%;
+      cursor:crosshair;
+      touch-action:none;
+      user-select:none;
     }
     #appRoot .controls{ display:flex; flex-direction:column; gap:12px; text-transform:lowercase; }
     #appRoot .row{ display:flex; align-items:center; }
