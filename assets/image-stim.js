@@ -2,29 +2,23 @@
 // Requires assets/util.js (window.VE)
 
 (function(){
-  const FIXATION_SRC = "https://via.placeholder.com/500?text=+"; // placeholder cross img URL; replace with your real cross
+  const FIXATION_SRC = "https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/Eo_circle_green_letter-x.svg/768px-Eo_circle_green_letter-x.svg.png?20200417132944";
   const FIXATION_ALT = "Fixation cross placeholder";
 
   // Placeholder lists — replace with your real URLs
   const IMAGE_LISTS = {
     A: [
-      "https://via.placeholder.com/500?text=A1",
-      "https://via.placeholder.com/500?text=A2",
-      "https://via.placeholder.com/500?text=A3"
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Woman_teaching_geometry.jpg/800px-Woman_teaching_geometry.jpg",
     ],
     B: [
-      "https://via.placeholder.com/500?text=B1",
-      "https://via.placeholder.com/500?text=B2"
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Woman_teaching_geometry.jpg/800px-Woman_teaching_geometry.jpg",
     ],
     C: [
-      "https://via.placeholder.com/500?text=C1"
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Woman_teaching_geometry.jpg/800px-Woman_teaching_geometry.jpg",
     ],
     D: [
-      "https://via.placeholder.com/500?text=D1",
-      "https://via.placeholder.com/500?text=D2",
-      "https://via.placeholder.com/500?text=D3",
-      "https://via.placeholder.com/500?text=D4"
-    ]
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Woman_teaching_geometry.jpg/800px-Woman_teaching_geometry.jpg",
+    ],
   };
 
   // --- utility ---
