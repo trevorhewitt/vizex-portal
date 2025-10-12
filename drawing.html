@@ -1,17 +1,257 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <title>Drawing</title>
-  <link rel="stylesheet" href="assets/style.css" />
+
+  <!-- Portal CSS + utils -->
+  <link rel="stylesheet" href="assets/style.css"/>
   <script src="assets/util.js" defer></script>
+
+  <!-- Drawing-app scoped styles (no global body rules) -->
+  <style>
+    .drawing-app{ display:flex; flex-direction:column; align-items:center; }
+    .drawing-app :root{} /* noop, keeps compat if script reads CSS vars */
+
+    .drawing-app{ --ui-scale:1.45; --slider-track-h:40px; --slider-thumb-d:30px; --thumb-border:4px solid #005197; font-size:calc(16px * var(--ui-scale)); user-select:none; -webkit-user-select:none; }
+
+    /* canvas container */
+    .drawing-app #viewport{
+      width:calc(350px * var(--ui-scale));
+      height:calc(350px * var(--ui-scale));
+      overflow:hidden;
+      border:2px solid green;
+      position:relative;
+      touch-action:none;
+      margin-bottom:calc(20px * var(--ui-scale));
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:#fff;
+    }
+    .drawing-app canvas{
+      position:absolute;
+      width:950px;
+      height:950px;
+      cursor:crosshair;
+      user-select:none;
+      touch-action:none;
+    }
+
+    /* controls layout */
+    .drawing-app .controls{
+      width:calc(350px * var(--ui-scale));
+      display:flex;
+      flex-direction:column;
+      gap:calc(12px * var(--ui-scale));
+      text-transform:lowercase;
+    }
+    .drawing-app .row{ display:flex; align-items:center; }
+    .drawing-app .space-between{ justify-content:space-between; }
+    .drawing-app .row.space-between{ align-items:end; }
+
+    /* slider groups */
+    .drawing-app .slider-group{
+      flex:1;
+      display:grid;
+      grid-template-rows:auto var(--slider-track-h);
+      align-items:end;
+    }
+    .drawing-app .slider-group .label-text{
+      font-size:14px; margin-bottom:4px; justify-self:center; text-align:center; text-transform:lowercase;
+    }
+    .drawing-app .slider-group input[type="range"]{ align-self:end; width:100%; }
+
+    /* dividers */
+    .drawing-app .divider, .drawing-app .col-divider{ pointer-events:none; background:#ccc; }
+    .drawing-app .divider{ width:1px; height:24px; margin:0 8px; }
+    .drawing-app .col-divider{ width:1px; margin:0 12px; }
+
+    /* tool rows */
+    .drawing-app .tool-row, .drawing-app .actions{ display:flex; align-items:center; gap:8px; text-transform:lowercase; }
+    .drawing-app .tool-row button, .drawing-app .actions button{
+      flex:1; padding:8px; font-size:14px; background:#fff; border:1px solid #ccc;
+    }
+    .drawing-app .tool-row button.selected, .drawing-app .tool-row button.active{
+      background:#ddd; border-color:#888;
+    }
+
+    /* swap colours */
+    .drawing-app #swapColors{
+      align-self:end; height:var(--slider-track-h); width:50px; padding:0; border-radius:0;
+      background:#fff; border:1px solid #ccc; color:inherit;
+    }
+    .drawing-app #flipH{ background:#fff; border:1px solid #ccc; }
+
+    /* range inputs */
+    .drawing-app input[type="range"]{ -webkit-appearance:none; appearance:none; width:100%; height:var(--slider-track-h); background:none; }
+    .drawing-app input[type="range"]::-webkit-slider-runnable-track{ height:var(--slider-track-h); background-size:100% 100%; background-repeat:no-repeat; background-position:center; }
+    .drawing-app input[type="range"]::-webkit-slider-thumb{
+      -webkit-appearance:none; appearance:none; width:var(--slider-thumb-d); height:var(--slider-thumb-d);
+      margin-top:calc((var(--slider-track-h) - var(--slider-thumb-d))/2);
+      border:var(--thumb-border); border-radius:50%; background:transparent; box-shadow:0 0 2px #888;
+    }
+    .drawing-app input[type="range"]::-moz-range-track{ height:var(--slider-track-h); background-size:100% 100%; background-repeat:no-repeat; background-position:center; }
+    .drawing-app input[type="range"]::-moz-range-thumb{
+      width:var(--slider-thumb-d); height:var(--slider-thumb-d); border:var(--thumb-border); border-radius:50%; background:transparent; box-shadow:0 0 2px #888;
+    }
+    .drawing-app input[type="range"]::-moz-range-progress{ background-color:transparent; }
+    .drawing-app input[type="range"]::-ms-track{ height:var(--slider-track-h); background:transparent; border-color:transparent; color:transparent; }
+    .drawing-app input[type="range"]::-ms-thumb{ width:var(--slider-thumb-d); height:var(--slider-thumb-d); border:var(--thumb-border); border-radius:50%; background:transparent; box-shadow:0 0 2px #888; }
+
+    /* per-slider track images */
+    .drawing-app #background::-webkit-slider-runnable-track{ background:url('https://res.cloudinary.com/dlginribm/image/upload/v1756743258/colour_zes2mh.png') no-repeat center/cover; }
+    .drawing-app #brushColor::-webkit-slider-runnable-track{ background:url('https://res.cloudinary.com/dlginribm/image/upload/v1756743258/brightness_clear_z6urk1.png') no-repeat center/cover; }
+    .drawing-app #blur::-webkit-slider-runnable-track{ background:url('https://res.cloudinary.com/dlginribm/image/upload/v1756743258/blur_clear_v2_j4ntub.png') no-repeat center/cover; }
+    .drawing-app #thickness::-webkit-slider-runnable-track{ background:url('https://res.cloudinary.com/dlginribm/image/upload/v1756743258/thickness_clear_kzsa5m.png') no-repeat center/cover; }
+
+    .drawing-app #background::-moz-range-track{ background:url('https://res.cloudinary.com/dlginribm/image/upload/v1756743258/colour_zes2mh.png') no-repeat center/cover; }
+    .drawing-app #brushColor::-moz-range-track{ background:url('https://res.cloudinary.com/dlginribm/image/upload/v1756743258/brightness_clear_z6urk1.png') no-repeat center/cover; }
+    .drawing-app #blur::-moz-range-track{ background:url('https://res.cloudinary.com/dlginribm/image/upload/v1756743258/blur_clear_v2_j4ntub.png') no-repeat center/cover; }
+    .drawing-app #thickness::-moz-range-track{ background:url('https://res.cloudinary.com/dlginribm/image/upload/v1756743258/thickness_clear_kzsa5m.png') no-repeat center/cover; }
+
+    /* Tutorial overlay (unchanged) */
+    .drawing-app #tutorialOverlay{
+      position:fixed; inset:0; background:rgba(0,0,0,0.45); display:none; align-items:center; justify-content:center; z-index:9999; padding:24px;
+    }
+    .drawing-app .tutorial-card{
+      max-width:min(720px, 90vw); background:#ffffff; border-radius:14px; box-shadow:0 10px 40px rgba(0,0,0,0.25);
+      padding:22px 22px 16px 22px; color:#111;
+    }
+    .drawing-app .tutorial-card h2{ margin:0 0 8px 0; font-size:20px; text-transform:none; }
+    .drawing-app .tutorial-card .tutorial-body{ font-size:16px; line-height:1.45; }
+    .drawing-app .tutorial-card .inline-actions{ margin-top:16px; display:flex; gap:10px; justify-content:flex-end; }
+    .drawing-app .btn{ padding:8px 16px; border:1px solid #0b66c3; background:#e8f2ff; color:#0b66c3; border-radius:8px; cursor:pointer; font-size:14px; }
+    .drawing-app .btn.secondary{ border-color:#bbb; background:#fff; color:#333; }
+    .drawing-app #tutorialFooter{ position:fixed; left:0; right:0; bottom:0; display:flex; justify-content:center; padding:10px 12px; z-index:9998; pointer-events:none; }
+    .drawing-app #tutorialNext{ pointer-events:auto; padding:10px 18px; font-size:15px; border-radius:999px; border:1px solid #555; background:#fff; box-shadow:0 3px 12px rgba(0,0,0,0.15); cursor:pointer; }
+    .drawing-app [data-tutorial-hide]{ display:none !important; }
+
+    /* Saving overlay (portal-friendly, minimal text) */
+    #savingOverlay{
+      position:fixed; inset:0; background:rgba(0,0,0,0.35); display:none; align-items:center; justify-content:center; z-index:10000;
+    }
+    #savingOverlay .spinner{
+      width:56px; height:56px; border-radius:50%;
+      border:6px solid rgba(255,255,255,0.5); border-top-color:#fff; animation:spin 1s linear infinite;
+    }
+    @keyframes spin{ to{ transform:rotate(360deg); } }
+
+    /* Dev confirm modal */
+    #devConfirm{
+      position:fixed; inset:0; background:rgba(0,0,0,0.4); display:none; align-items:center; justify-content:center; z-index:10001;
+    }
+    #devConfirm .card{
+      background:#fff; border-radius:12px; padding:18px; max-width:520px; width:min(90vw, 520px);
+    }
+    #devConfirm .actions{ display:flex; gap:10px; justify-content:flex-end; margin-top:12px; }
+    #devConfirm button{ border:none; border-radius:10px; padding:10px 16px; font-weight:700; }
+    #devConfirm .cancel{ background:#555; color:#fff; }
+    #devConfirm .ok{ background:#333; color:#fff; }
+  </style>
+
+  <script defer src="script.js"></script>
 </head>
+
 <body data-page="drawing">
   <div class="page">
     <div class="content">
       <div class="inner" id="root">
-        <!-- Intentionally blank. You'll mount the drawing app here later. -->
+
+        <!-- Drawing app (scoped) -->
+        <div class="drawing-app" aria-live="polite" aria-busy="false">
+          <div id="viewport">
+            <canvas id="drawingCanvas" width="950" height="950"></canvas>
+          </div>
+
+          <div class="controls">
+            <div class="row space-between" id="rowColors" data-tutorial-hide>
+              <div class="slider-group">
+                <span class="label-text">background colour</span>
+                <input type="range" id="background" min="0" max="255" value="255"/>
+              </div>
+              <div class="divider"></div>
+              <button id="swapColors" data-tutorial-hide>swap colours</button>
+              <div class="divider"></div>
+              <div class="slider-group">
+                <span class="label-text">brush colour</span>
+                <input type="range" id="brushColor" min="0" max="255" value="0"/>
+              </div>
+            </div>
+
+            <div class="row" id="rowSoftSize" data-tutorial-hide>
+              <div style="flex:1; display:flex; flex-direction:column; gap:12px;">
+                <div class="slider-group">
+                  <span class="label-text">brush softness</span>
+                  <input type="range" id="blur" min="0" max="10" step="0.1" value="0"/>
+                </div>
+              </div>
+              <div class="col-divider"></div>
+              <div style="flex:1; display:flex; flex-direction:column; gap:12px;">
+                <div class="slider-group">
+                  <span class="label-text">brush size</span>
+                  <input type="range" id="thickness" min="1" max="20" value="10"/>
+                </div>
+              </div>
+            </div>
+
+            <div class="tool-row" id="rowDrawErase" data-tutorial-hide>
+              <button data-tool="draw" class="selected">draw</button>
+              <button data-tool="erase">erase</button>
+            </div>
+
+            <div class="tool-row" id="rowMove" data-tutorial-hide>
+              <button data-tool="move">move</button>
+            </div>
+
+            <div class="tool-row" id="rowFlip" data-tutorial-hide>
+              <button id="flipH">flip</button>
+            </div>
+
+            <div class="actions" id="rowHistory" data-tutorial-hide>
+              <button id="undo">undo</button>
+              <button id="redo">redo</button>
+            </div>
+
+            <div class="actions" id="rowClear" data-tutorial-hide>
+              <button id="clear">clear</button>
+            </div>
+
+            <div class="actions" id="rowFinish" data-tutorial-hide>
+              <button id="saveButton">finish</button>
+            </div>
+          </div>
+
+          <div id="tutorialOverlay" aria-modal="true" role="dialog">
+            <div class="tutorial-card">
+              <h2 id="tutorialTitle"></h2>
+              <div id="tutorialBody" class="tutorial-body"></div>
+              <div class="inline-actions">
+                <button id="tutorialCloseTry" class="btn">try it yourself</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="tutorialFooter">
+            <button id="tutorialNext">next</button>
+          </div>
+        </div>
+
+        <!-- Saving overlay -->
+        <div id="savingOverlay" aria-hidden="true"><div class="spinner" aria-label="Saving"></div></div>
+
+        <!-- Dev confirm -->
+        <div id="devConfirm" aria-hidden="true">
+          <div class="card">
+            <div class="msg">Participant - please click cancel and bring your tablet to the researcher so they can fix this error</div>
+            <div class="actions">
+              <button class="cancel" id="devCancel">Cancel</button>
+              <button class="ok" id="devOk">OK</button>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -23,18 +263,38 @@
     </div>
   </div>
 
+  <!-- Page script: params, nav, dev-only next behavior -->
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       const params = VE.parseParams();
+      const dev = VE.hasDev(params);
 
-      // Wire nav handlers so Back/Next work
+      // Bind back/next to portal routes
       VE.bindNavForPage("drawing", params);
 
-      // Back only in dev; Next in both modes (so participants can proceed)
-      const dev = VE.hasDev(params);
+      // Show buttons only in dev mode (both Back and Next)
       VE.setupNavVisibility(params, { allowBack: dev });
+      const nextBtn = document.getElementById("nextBtn");
+      if (nextBtn) nextBtn.style.display = dev ? "" : "none";
 
-      // Optional dev footer for quick checks
+      // Dev-only confirm popup for Next (no saving)
+      if (dev && nextBtn) {
+        const modal = document.getElementById("devConfirm");
+        const ok = document.getElementById("devOk");
+        const cancel = document.getElementById("devCancel");
+        nextBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          modal.style.display = "flex";
+        });
+        cancel.addEventListener("click", () => { modal.style.display = "none"; });
+        ok.addEventListener("click", () => {
+          modal.style.display = "none";
+          const r = VE.nextRoute("drawing", params);
+          VE.goto(r.page, r.params);
+        });
+      }
+
+      // Optional: dev inspector at bottom of page
       VE.renderDevFooter(params, dev ? "drawing (dev)" : "");
     });
   </script>
