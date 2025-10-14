@@ -1882,6 +1882,9 @@ class DrawingApp {
                 this._doubleTapState.fingers = {};
             }
         }, { passive: true });
+        ['gesturestart','gesturechange','gestureend'].forEach(type=>{
+            window.addEventListener(type, e => e.preventDefault(), { passive:false });
+        });
     }
 
 

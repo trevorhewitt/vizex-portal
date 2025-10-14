@@ -29,6 +29,9 @@ html, body{
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
   -webkit-text-size-adjust: 100%;
   overscroll-behavior: none;
+  /* NEW: stop Safari/Chrome-iOS from panning/zooming on touch */
+  touch-action: none;           /* blocks pan, pinch, double-tap zoom */
+  -ms-touch-action: none;
 }
 
 /* 2-row grid: content + footer; includes device safe-area padding */
@@ -42,6 +45,7 @@ html, body{
     env(safe-area-inset-right, 0px)
     env(safe-area-inset-bottom, 0px)
     env(safe-area-inset-left, 0px);
+  overflow: hidden; 
 }
 
 /* Content row must be allowed to shrink so footer stays visible.
@@ -172,4 +176,10 @@ button:active, a:active{ transform: translateY(1px); }
   .content{ padding: 2vh 3.5vw; }                  /* further tighten */
   .inner{ padding: clamp(10px, 2vh, 24px); }
   :root{ --maxWidth: 760px; }
+}
+
+/* The drawing canvas specifically should never generate gestures */
+#drawingCanvas{
+  touch-action: none;           /* NEW: belt-and-braces on the element */
+  -ms-touch-action: none;
 }
