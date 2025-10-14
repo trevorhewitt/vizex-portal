@@ -5,7 +5,7 @@ const DrawingUtilsCompat = (typeof DrawingUtils !== 'undefined') ? DrawingUtils 
 
 const DEMO_MODE = true;
 
-const SLOW_TABLET_DEFER_BLUR = true; 
+const SLOW_TABLET_DEFER_BLUR = false; 
 
 // ===================== Cloudinary config + upload helpers =====================
 // Your actual Cloudinary info:
@@ -72,14 +72,17 @@ class DrawingApp {
         // --- Deterministic color randomization ---
         this.seed = seed || 'default_seed';
         const rand = DrawingApp.seededRandom(this.seed);
-        // Avoid extremes (not pure black/white)
-        // Use full range (0-255) for both bg and fg
+
+        // Use full 0–255 range for both bg and fg
         const min = 0, max = 255;
         let bg = Math.floor(rand() * (max - min + 1) + min);
         let fg = Math.floor(rand() * (max - min + 1) + min);
-        // Ensure minimum color distance
-        if (Math.abs(bg - fg) < DrawingApp.MIN_COLOR_DISTANCE) {
-            fg = (bg + DrawingApp.MIN_COLOR_DISTANCE) % (max + 1);
+
+        // Enforce a larger one-off separation ONLY at initialization.
+        // 25% of 255 ≈ 64. Use 64 here, independent of the small slider guard.
+        const INIT_MIN_DISTANCE = 64;
+        if (Math.abs(bg - fg) < INIT_MIN_DISTANCE) {
+        fg = (bg + INIT_MIN_DISTANCE) % (max + 1);
         }
         // --- DOM references ---
         // Use helper getEl / qAll so missing elements are easier to spot and grouped
@@ -2167,19 +2170,24 @@ class DrawingApp {
 
 }
 
-function getSeedFromUrl() {
+function getSeedFromParamsUsingP() {
     try {
-        if (typeof URLSearchParams !== 'undefined') {
+        // Prefer your VE.parseParams() if available (keeps portal logic unified)
+        if (window.VE && typeof VE.parseParams === 'function') {
+            const p = (VE.parseParams().p || '').trim();
+            if (p) return p;
+        } else if (typeof URLSearchParams !== 'undefined') {
             const params = new URLSearchParams(window.location.search || '');
-            return params.get('seed') || 'default_seed';
+            const p = (params.get('p') || '').trim();
+            if (p) return p;
         }
     } catch (_) {}
-    return 'default_seed';
+    // Fallback: non-deterministic seed when no p present
+    return 'rand_' + Math.random().toString(36).slice(2);
 }
 
-// Instantiate DrawingApp with deterministic seed from URL
 window.addEventListener('DOMContentLoaded', () => {
-    const app = new DrawingApp(getSeedFromUrl());
+    const app = new DrawingApp(getSeedFromParamsUsingP());
     app.init();
 });
 
