@@ -28,7 +28,7 @@
       aspect-ratio: 1 / 1;
       height: auto;
       overflow: hidden;
-      border: 8px solid green;
+      border: 8px solid green; /* this one doesn't seem to work */
       position: relative;
       touch-action: none;
       margin-bottom: calc(20px * var(--ui-scale));
@@ -42,7 +42,7 @@
     #appRoot #viewport{
       /* no fixed height here; aspect-ratio handles it */
       overflow:hidden;
-      border:2px solid green;
+      border:8px solid green;
       position:relative;
       touch-action:none;
       margin-bottom:calc(20px * var(--ui-scale));
@@ -75,7 +75,7 @@
     #appRoot .slider-group .label-text{ font-size:14px; margin-bottom:4px; justify-self:center; text-align:center; text-transform:lowercase; }
     #appRoot .slider-group input[type="range"]{ 
       align-self:end; 
-      height: 60px;      
+      height: 36px;      
       width:100%; 
     }
     #appRoot .divider, #appRoot .col-divider{ pointer-events:none; background:#ccc; }
