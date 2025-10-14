@@ -6,6 +6,29 @@
   <title>RESEARCHER USE ONLY — parameters input</title>
   <link rel="stylesheet" href="assets/style.css" />
   <script src="assets/util.js" defer></script>
+  <style>
+    /* Tiny, unobtrusive helper text next to trial order */
+    .hint {
+      font-size: 12px;
+      opacity: 0.75;
+      display: block;
+      margin-top: 4px;
+    }
+    .inline-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .linklike {
+      background: none;
+      border: none;
+      padding: 0;
+      font: inherit;
+      color: var(--accent, #0b5fff);
+      text-decoration: underline;
+      cursor: pointer;
+    }
+  </style>
 </head>
 <body data-page="index">
   <div class="page">
@@ -30,8 +53,12 @@
           </label>
 
           <label>
-            Trial order (string of condition characters; optional for now)
-            <input type="text" id="orderInput" inputmode="text" autocomplete="off" />
+            Trial order (string of condition characters; optional — auto-filled by session, editable)
+            <div class="inline-actions">
+              <input type="text" id="orderInput" inputmode="text" autocomplete="off" style="flex:1;" />
+              <button id="resetOrderBtn" class="linklike" type="button" title="Reset to the session’s default order">reset</button>
+            </div>
+            <span class="hint">Auto-fills from selected session. Typing here overrides. Changing session won’t overwrite your edits.</span>
           </label>
 
           <label>
@@ -58,32 +85,113 @@
   </div>
 
   <script>
+    // Provided session orders (deterministic, pre-generated)
+    const SESSION_ORDERS = {
+      "202510170920": "D72B2XC4534AX566311",
+      "202510171100": "D42C1X166B53X253A74",
+      "202510171240": "D2535X24616AX7C134B",
+      "202510171420": "D514CX426235X7A3B16",
+      "202510171600": "D321BX1C6255X44673A",
+      "202510180920": "DB112X3436CAX764255",
+      "202510181100": "D4153X24B563X267AC1",
+      "202510181240": "D7165XAB1426X33C542",
+      "202510181420": "D13A5X1362B2XC76454",
+      "202510181600": "D5137X1C344AX622B65",
+      "202510240920": "D44CBX526635XA31721",
+      "202510241100": "D2326XBA7415X5C6314",
+      "202510241240": "DB45CX715A23X621634",
+      "202510241420": "D1526X347645XC123AB",
+      "202510241600": "D51B6X47A2C3X431625",
+      "202510241740": "D64A3X721B5CX245613",
+    };
+    // Also expose on VE for convenience if util.js defines VE
+    window.VE = window.VE || {};
+    VE.SESSION_ORDERS = SESSION_ORDERS;
+
     document.addEventListener("DOMContentLoaded", () => {
       const params = VE.parseParams();
 
-      // Populate sessions
       const sel = document.getElementById("sessionSelect");
-      VE.SESSIONS.forEach(([label, code]) => {
+      const orderInput = document.getElementById("orderInput");
+      const resetOrderBtn = document.getElementById("resetOrderBtn");
+
+      // Track whether the user has manually edited (so we don't clobber their input)
+      let userEditedOrder = false;
+      // Remember last auto-filled value, so if the current matches it we can safely replace on session change
+      let lastAutoOrder = "";
+
+      // Populate sessions
+      (VE.SESSIONS || SESSIONS).forEach(([label, code]) => {
         const opt = document.createElement("option");
         opt.value = code; opt.textContent = label;
         sel.appendChild(opt);
       });
 
+      // Helper: get default order for a given session code
+      function defaultOrderFor(code) {
+        return (VE.SESSION_ORDERS && VE.SESSION_ORDERS[code]) ? VE.SESSION_ORDERS[code] : "";
+      }
+
+      // Helper: auto-fill order input (does NOT mark as user-edited)
+      function autofillOrderForSession(code) {
+        const def = defaultOrderFor(code);
+        orderInput.value = def;
+        lastAutoOrder = def;
+        // Do not set userEditedOrder here (stays whatever it was)
+      }
+
       // Prefill from query (if any)
       if (params.s) sel.value = params.s;
       if (params.n) document.getElementById("nameInput").value  = params.n;
       if (params.p) document.getElementById("codeInput").value  = params.p;
-      if (typeof params.t === "string") document.getElementById("orderInput").value = params.t;
-      if (params.i) document.getElementById("indexInput").value = params.i;
-      if (params.m) document.getElementById("modeSelect").value = params.m;
+      if (typeof params.i === "string") document.getElementById("indexInput").value = params.i;
+      if (typeof params.m === "string") document.getElementById("modeSelect").value = params.m;
+
+      // Decide initial order value:
+      // 1) If query provided t, use it and consider it a manual override
+      // 2) Else, use the default for the currently selected session (or first)
+      if (typeof params.t === "string" && params.t.trim().length > 0) {
+        orderInput.value = params.t.trim();
+        userEditedOrder = true; // respect manual/queried override
+      } else {
+        // No explicit order provided — auto-fill from selected or first session
+        const selectedCode = sel.value || (VE.SESSIONS || SESSIONS)[0][1];
+        if (!sel.value) sel.value = selectedCode;
+        autofillOrderForSession(selectedCode);
+      }
+
+      // Detect manual edits
+      orderInput.addEventListener("input", () => {
+        userEditedOrder = true;
+      });
+
+      // Session change behavior:
+      // If user hasn't edited OR current value equals the last auto value OR the field is empty,
+      // replace with the new session's default. Otherwise, keep their custom text.
+      sel.addEventListener("change", () => {
+        const newCode = sel.value;
+        const current = orderInput.value.trim();
+        if (!userEditedOrder || current === lastAutoOrder || current === "") {
+          autofillOrderForSession(newCode);
+          // keep userEditedOrder as-is (likely false)
+        }
+        // else: keep user's custom order
+      });
+
+      // Reset button restores the default for the currently selected session
+      resetOrderBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        autofillOrderForSession(sel.value);
+        userEditedOrder = false;
+      });
 
       // Next → param-check.html with built query
       document.getElementById("nextBtn").addEventListener("click", () => {
         const nextParams = {
           p: document.getElementById("codeInput").value.trim(),
           n: document.getElementById("nameInput").value.trim(),
-          s: document.getElementById("sessionSelect").value,
-          t: document.getElementById("orderInput").value.trim(),
+          s: sel.value,
+          t: orderInput.value.trim(), // whatever is currently in the box (auto or manual)
           i: String(parseInt(document.getElementById("indexInput").value || "0", 10) || 0),
           m: document.getElementById("modeSelect").value
         };
