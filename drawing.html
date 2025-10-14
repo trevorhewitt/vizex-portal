@@ -119,20 +119,20 @@
     /* Thumb: outline only, transparent centre so track image shows through */
     #appRoot input[type="range"]::-webkit-slider-thumb {
       -webkit-appearance: none;
-      width: 50px;
-      height: 50px;
+      width: 40px;
+      height: 40px;
       border-radius: 50%;
       background: transparent;      /* key: see-through */
-      border: 3px solid #263238;    /* outline */
+      border: 3px solid #0078b4;    /* outline */
       box-shadow: none;
       margin-top: -8px;             /* centers on a 12px track */
     }
     #appRoot input[type="range"]::-moz-range-thumb {
-      width: 50px;
-      height: 50px;
+      width: 40px;
+      height: 40px;
       border-radius: 50%;
       background: transparent;      /* key: see-through */
-      border: 3px solid #263238;
+      border: 6px solid #0078b4;   
       box-shadow: none;
     }
 
@@ -148,19 +148,19 @@
     #appRoot input[type="range"]::-webkit-slider-thumb {
       -webkit-appearance: none;
       width: 50x;
-      height: 50px;
+      height: 40px;
       border-radius: 50%;
       background: transparent;      /* key: see-through */
-      border: 3px solid #263238;    /* outline */
+      border: 3px solid #0078b4;      /* outline */
       box-shadow: none;
       margin-top: -8px;             /* centers on a 12px track */
     }
     #appRoot input[type="range"]::-moz-range-thumb {
-      width: 50px;
-      height: 50px;
+      width: 40px;
+      height: 40px;
       border-radius: 50%;
       background: transparent;      /* key: see-through */
-      border: 3px solid #263238;
+      border: 6px solid #0078b4;   
       box-shadow: none;
     }
 
@@ -211,6 +211,19 @@
     #devConfirm button{ padding:10px 18px; border:none; border-radius:10px; }
     #devConfirm .cancel{ background:#ddd; }
     #devConfirm .ok{ background:#333; color:#fff; }
+    /* Wrap around the canvas (whatever your wrapper is) */
+    #canvasWrap, .canvas-wrap, .viewport-wrap {
+      line-height: 0;        /* kill inline spacing */
+      overflow: hidden;      /* hide any subpixel seams */
+    }
+
+    /* The drawing canvas itself */
+    #drawingCanvas {
+      display: block;        /* avoid inline gap */
+      vertical-align: top;   /* belt + braces */
+      transform: translateZ(0); /* nudge GPU -> reduces anti-aliased seams */
+    }
+
   </style>
 </head>
 
