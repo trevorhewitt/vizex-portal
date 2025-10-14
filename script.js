@@ -1416,25 +1416,20 @@ class DrawingApp {
             this._offscreenCtx = this._offscreen.getContext('2d');
         }
 
-        // Draw all paths into the offscreen buffer in chronological order.
-        // For each path we set composite to 'source-over' for normal strokes
-        // and 'destination-out' for erasers so an eraser only clears pixels
-        // that existed before it (it will not remove strokes drawn afterwards).
+        // Draw all paths into the offscreen buffer (no filters here)
         this._offscreenCtx.setTransform(1, 0, 0, 1, 0, 0);
         this._offscreenCtx.clearRect(0, 0, width, height);
         this.applyTransforms(this._offscreenCtx, width, height, state);
 
-        /* Use deferred/“effective” blur and avoid redundant filter sets */
-        /* We render strokes to the offscreen with NO filter (best iOS reliability) */
+        // Always render strokes to offscreen with NO filter (device-independent)
         this._offscreenCtx.filter = 'none';
-        this._lastOffFilter = 'none'; // keep cache coherent
+        this._lastOffFilter = 'none';
         const effBlur = this._getEffectiveBlur();
 
-        // Replay each saved path in order. Use per-path composite operation.
+        // Replay saved paths
         for (let p of paths) {
             if (p.erase) {
                 this._offscreenCtx.globalCompositeOperation = 'destination-out';
-                // color is irrelevant for destination-out; pass 0 to drawPath
                 this.drawPath(this._offscreenCtx, { points: p.points, erase: true, color: 0 });
             } else {
                 this._offscreenCtx.globalCompositeOperation = 'source-over';
@@ -1442,7 +1437,7 @@ class DrawingApp {
             }
         }
 
-        // Draw the currently-active path (in-progress stroke)
+        // In-progress stroke
         if (drawing && currentPath && currentPath.length > 1) {
             if (state.tool === 'erase') {
                 this._offscreenCtx.globalCompositeOperation = 'destination-out';
@@ -1456,38 +1451,24 @@ class DrawingApp {
         // Reset composite to default
         this._offscreenCtx.globalCompositeOperation = 'source-over';
 
-        // Paint background first (not blurred)
-        ctx.setTransform(1,0,0,1,0,0);            // just in case
-        ctx.filter = 'none';
+        // Paint background (not blurred)
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.filter = 'none';
         ctx.fillStyle = `rgb(${state.background},${state.background},${state.background})`;
         ctx.fillRect(0, 0, width, height);
 
-        // Composite strokes: if blur requested, use our pixel-blur layer; otherwise draw raw
+        // Composite strokes (blur via our pixel-blur, no ctx.filter usage)
         if (effBlur > 0) {
-        const blurredLayer = this._getBlurredStrokeLayer(width, height, effBlur);
-        ctx.drawImage(blurredLayer, 0, 0);
+            const blurredLayer = this._getBlurredStrokeLayer(width, height, effBlur);
+            ctx.drawImage(blurredLayer, 0, 0);
         } else {
-        ctx.drawImage(this._offscreen, 0, 0);
+            ctx.drawImage(this._offscreen, 0, 0);
         }
 
         // Reset any filter for future draws
         ctx.filter = 'none';
-
-        // Now blur ONLY the stroke layer when compositing it onto the main canvas.
-        // This is the key change that fixes iPad/WebKit.
-        if ('filter' in ctx && effBlur > 0) {
-        ctx.filter = `blur(${effBlur}px)`;
-        } else {
-        ctx.filter = 'none';
-        }
-
-        ctx.drawImage(this._offscreen, 0, 0);
-
-        // Reset filter for any later UI draws
-        ctx.filter = 'none';
     }
+
 
     redraw() {
         this.doDrawingPipeline(
