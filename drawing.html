@@ -69,8 +69,25 @@
     #appRoot .row{ display:flex; align-items:center; }
     #appRoot .space-between{ justify-content:space-between; }
     #appRoot .row.space-between{ align-items:end; }
-    #appRoot .slider-group{
-      flex:1; display:grid; grid-template-rows:auto var(--slider-track-h); align-items:end;
+    /* Make each slider group a vertical stack with label above the range input */
+    #appRoot .slider-group {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 6px;               /* space between label and slider */
+      min-height: 56px;       /* comfortable tap space */
+    }
+
+    /* Keep rows behaving the same (side-by-side groups still fine) */
+    #appRoot .row {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;   /* label stays above slider; no vertical centering */
+    }
+
+    #appRoot .label-text {
+      font-size: 0.95rem;
+      line-height: 1.2;
     }
     #appRoot .slider-group .label-text{ font-size:14px; margin-bottom:4px; justify-self:center; text-align:center; text-transform:lowercase; }
     #appRoot .slider-group input[type="range"]{ 
@@ -99,34 +116,62 @@
       padding: 10px 0;          /* increases hit area without visual misalignment */
     }
 
-    /* WebKit (Safari, iPad, Chrome) */
-    #appRoot input[type="range"]::-webkit-slider-runnable-track {
-      height: 60px;             /* visual track thickness */
-      background: #cfd8dc;
-      border-radius: 999px;
-    }
+    /* Thumb: outline only, transparent centre so track image shows through */
     #appRoot input[type="range"]::-webkit-slider-thumb {
       -webkit-appearance: none;
-      width: 28px;              /* larger touch thumb */
-      height: 28px;
+      width: 50px;
+      height: 50px;
       border-radius: 50%;
-      border: 2px solid #263238;
-      background: #fafafa;
-      margin-top: -8px;         /* centers thumb vertically on 12px track */
-    }
-
-    /* Firefox */
-    #appRoot input[type="range"]::-moz-range-track {
-      height: 12px;
-      background: #cfd8dc;
-      border-radius: 999px;
+      background: transparent;      /* key: see-through */
+      border: 3px solid #263238;    /* outline */
+      box-shadow: none;
+      margin-top: -8px;             /* centers on a 12px track */
     }
     #appRoot input[type="range"]::-moz-range-thumb {
-      width: 28px;
-      height: 28px;
+      width: 50px;
+      height: 50px;
       border-radius: 50%;
-      border: 2px solid #263238;
-      background: #fafafa;
+      background: transparent;      /* key: see-through */
+      border: 3px solid #263238;
+      box-shadow: none;
+    }
+
+    /* Accessibility: visible focus ring without filling the thumb */
+    #appRoot input[type="range"]:focus-visible::-webkit-slider-thumb {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(38,50,56,.25);
+    }
+    #appRoot input[type="range"]:focus-visible::-moz-range-thumb {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(38,50,56,.25);
+    }/* Thumb: outline only, transparent centre so track image shows through */
+    #appRoot input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 50x;
+      height: 50px;
+      border-radius: 50%;
+      background: transparent;      /* key: see-through */
+      border: 3px solid #263238;    /* outline */
+      box-shadow: none;
+      margin-top: -8px;             /* centers on a 12px track */
+    }
+    #appRoot input[type="range"]::-moz-range-thumb {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: transparent;      /* key: see-through */
+      border: 3px solid #263238;
+      box-shadow: none;
+    }
+
+    /* Accessibility: visible focus ring without filling the thumb */
+    #appRoot input[type="range"]:focus-visible::-webkit-slider-thumb {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(38,50,56,.25);
+    }
+    #appRoot input[type="range"]:focus-visible::-moz-range-thumb {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(38,50,56,.25);
     }
 
     /* Optional: increase overall clickable area but keep visuals centered */

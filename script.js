@@ -1518,7 +1518,7 @@ class DrawingApp {
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.filter = 'none';
         ctx.fillStyle = `rgb(${state.background},${state.background},${state.background})`;
-        ctx.fillRect(0, 0, width, height);
+        ctx.fillRect(-1, -1, width + 2, height + 2); // fix hairline seam
 
         // Composite strokes (blur via our pixel-blur, no ctx.filter usage)
         if (effBlur > 0) {
