@@ -182,4 +182,6 @@ button:active, a:active{ transform: translateY(1px); }
 #drawingCanvas{
   touch-action: none;           /* NEW: belt-and-braces on the element */
   -ms-touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
 }

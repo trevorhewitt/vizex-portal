@@ -1296,12 +1296,10 @@ class DrawingApp {
         this.applyTransforms(this._offscreenCtx, width, height, state);
 
         /* Use deferred/“effective” blur and avoid redundant filter sets */
-        let effBlur = this._getEffectiveBlur();
-        let targetFilter = (('filter' in this._offscreenCtx) && effBlur > 0) ? `blur(${effBlur}px)` : 'none';
-        if (targetFilter !== this._lastOffFilter) {
-            this._offscreenCtx.filter = targetFilter;
-            this._lastOffFilter = targetFilter;
-        }
+        /* We render strokes to the offscreen with NO filter (best iOS reliability) */
+        this._offscreenCtx.filter = 'none';
+        this._lastOffFilter = 'none'; // keep cache coherent
+        const effBlur = this._getEffectiveBlur();
 
         // Replay each saved path in order. Use per-path composite operation.
         for (let p of paths) {
@@ -1329,9 +1327,24 @@ class DrawingApp {
         // Reset composite to default
         this._offscreenCtx.globalCompositeOperation = 'source-over';
 
+        // Paint background first (not blurred)
+        ctx.setTransform(1,0,0,1,0,0);            // just in case
+        ctx.filter = 'none';
         ctx.fillStyle = `rgb(${state.background},${state.background},${state.background})`;
         ctx.fillRect(0, 0, width, height);
+
+        // Now blur ONLY the stroke layer when compositing it onto the main canvas.
+        // This is the key change that fixes iPad/WebKit.
+        if ('filter' in ctx && effBlur > 0) {
+        ctx.filter = `blur(${effBlur}px)`;
+        } else {
+        ctx.filter = 'none';
+        }
+
         ctx.drawImage(this._offscreen, 0, 0);
+
+        // Reset filter for any later UI draws
+        ctx.filter = 'none';
     }
 
     redraw() {
