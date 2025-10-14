@@ -5,7 +5,7 @@ const DrawingUtilsCompat = (typeof DrawingUtils !== 'undefined') ? DrawingUtils 
 
 const DEMO_MODE = true;
 
-const SLOW_TABLET_DEFER_BLUR = false; 
+const SLOW_TABLET_DEFER_BLUR = true; 
 
 // ===================== Cloudinary config + upload helpers =====================
 // Your actual Cloudinary info:
