@@ -7,57 +7,59 @@
   <link rel="stylesheet" href="assets/style.css"/>
   <script src="assets/util.js" defer></script>
   <style>
-    /* Scoped drawing-app styles (keeps global CSS intact) */
+    /* ===== Drawing App (scoped) — drop-in replacement ===== */
+
     #appRoot {
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      gap:16px;
-      user-select:none;
-      -webkit-user-select:none;
-      -ms-user-select:none;
-      width:100%;
+      /* Layout vars */
+      --viewport-size: 600px;       /* visual square side length */
+      --controls-width: 600px;
+
+      /* Slider sizing vars — TWEAK THESE 2 */
+      --slider-track-h: 28px;       /* track height (image area) */
+      --slider-thumb-d: 34px;       /* thumb diameter */
+
+      /* Colors */
+      --thumb-outline: #005197;
+      --divider: #cccccc;
+
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      user-select: none;
+      -webkit-user-select: none;
+      width: 100%;
     }
-    #appRoot {
-      --viewport-size: 600px;   /* visual square size of the drawing area */
-      --controls-width: 600px;  /* total width of the controls section */
-    }
-    /* visual size of the drawing box (square) */
+
+    /* ===== Viewport / Canvas ===== */
     #appRoot #viewport {
       width: var(--viewport-size);
       aspect-ratio: 1 / 1;
       height: auto;
-      overflow: hidden;
-      border: 4px solid green; /* this one doesn't seem to work */
       position: relative;
-      touch-action: none;
-      margin-bottom: calc(20px * var(--ui-scale));
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      overflow: hidden;          /* seam guard */
+      border: 6px solid #00c853; /* thicker green border */
+      box-sizing: border-box;
       background: #f0f0f0;
+      display: flex; align-items: center; justify-content: center;
+      line-height: 0;            /* seam guard */
+      touch-action: none;
     }
 
-    #appRoot { --ui-scale: 1.45; --slider-track-h: 40px; --slider-thumb-d: 30px; --thumb-border: 4px solid #005197; }
-    #appRoot #viewport{
-      /* no fixed height here; aspect-ratio handles it */
-      overflow:hidden;
-      border:4px solid green;
-      position:relative;
-      touch-action:none;
-      margin-bottom:calc(20px * var(--ui-scale));
-      display:flex; align-items:center; justify-content:center;
-      background:#f0f0f0;
+    #appRoot canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;            /* seam guard */
+      vertical-align: top;       /* seam guard */
+      transform: translateZ(0);  /* reduces subpixel hairlines */
+      cursor: crosshair;
+      touch-action: none;
+      user-select: none;
     }
-    #appRoot canvas{
-      position:absolute;
-      inset:0;                /* anchor to container */
-      width:100%;             /* fill the square visually */
-      height:100%;
-      cursor:crosshair;
-      touch-action:none;
-      user-select:none;
-    }
+
+    /* ===== Controls wrapper ===== */
     #appRoot .controls {
       margin: 0 auto;
       width: var(--controls-width);
@@ -66,77 +68,107 @@
       gap: 12px;
       text-transform: lowercase;
     }
-    #appRoot .row{ display:flex; align-items:center; }
-    #appRoot .space-between{ justify-content:space-between; }
-    #appRoot .row.space-between{ align-items:end; }
-    /* Make each slider group a vertical stack with label above the range input */
+
+    #appRoot .row { display: flex; gap: 12px; align-items: flex-start; }
+    #appRoot .row.space-between { justify-content: space-between; }
+
+    /* First row: background | swap | brush color
+      Make sliders take most width; button thin */
+    #appRoot .controls .row.space-between > .slider-group {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+    #appRoot #swapColors {
+      flex: 0 0 84px;           /* thin button */
+      height: calc(var(--slider-track-h) + 10px);
+      padding: 0 8px;
+      border-radius: 8px;
+      background: #fff;
+      border: 1px solid #ccc;
+    }
+
+    /* Dividers */
+    #appRoot .divider, #appRoot .col-divider {
+      pointer-events: none;
+      background: var(--divider);
+    }
+    #appRoot .divider { width: 1px; height: 24px; margin: 0 8px; align-self: center; }
+    #appRoot .col-divider { width: 1px; margin: 0 12px; }
+
+    /* Slider groups: label above control */
     #appRoot .slider-group {
       display: flex;
       flex-direction: column;
       align-items: stretch;
-      gap: 6px;               /* space between label and slider */
-      min-height: 56px;       /* comfortable tap space */
+      gap: 6px;
+      min-height: 56px;
     }
+    #appRoot .label-text { font-size: 0.95rem; line-height: 1.2; text-align: center; }
 
-    /* Keep rows behaving the same (side-by-side groups still fine) */
-    #appRoot .row {
-      display: flex;
-      gap: 12px;
-      align-items: flex-start;   /* label stays above slider; no vertical centering */
+    /* ===== Buttons ===== */
+    #appRoot .tool-row, #appRoot .actions {
+      display: flex; align-items: center; gap: 8px; text-transform: lowercase;
     }
+    #appRoot .tool-row button, #appRoot .actions button {
+      flex: 1; padding: 8px; font-size: 14px; background: #fff; border: 1px solid #ccc;
+      border-radius: 10px;
+    }
+    #appRoot .tool-row button.selected, #appRoot .tool-row button.active {
+      background: #ddd; border-color: #888;
+    }
+    #appRoot #flipH { background: #fff; border: 1px solid #ccc; }
 
-    #appRoot .label-text {
-      font-size: 0.95rem;
-      line-height: 1.2;
-    }
-    #appRoot .slider-group .label-text{ font-size:14px; margin-bottom:4px; justify-self:center; text-align:center; text-transform:lowercase; }
-    #appRoot .slider-group input[type="range"]{ 
-      align-self:end; 
-      height: 36px;      
-      width:100%; 
-    }
-    #appRoot .divider, #appRoot .col-divider{ pointer-events:none; background:#ccc; }
-    #appRoot .divider{ width:1px; height:24px; margin:0 8px; }
-    #appRoot .col-divider{ width:1px; margin:0 12px; }
-    #appRoot .tool-row, #appRoot .actions{ display:flex; align-items:center; gap:8px; text-transform:lowercase; }
-    #appRoot .tool-row button, #appRoot .actions button{
-      flex:1; padding:8px; font-size:14px; background:#fff; border:1px solid #ccc;
-      border-radius:10px;
-    }
-    #appRoot .tool-row button.selected, #appRoot .tool-row button.active{ background:#ddd; border-color:#888; }
-    #appRoot #swapColors{
-      align-self:end; height:var(--slider-track-h); min-height:0; width:50px; padding:0; border-radius:0; background:#fff; border:1px solid #ccc; color:inherit;
-    }
-    #appRoot #flipH{ background:#fff; border:1px solid #ccc; }
+    /* ===== Range inputs (shared) ===== */
     #appRoot input[type="range"] {
       -webkit-appearance: none;
       appearance: none;
       width: 100%;
-      background: transparent;  /* prevents extra gray track in Safari */
-      padding: 10px 0;          /* increases hit area without visual misalignment */
+      background: transparent;   /* avoid Safari extra track */
+      padding: 12px 0;           /* increases hit area without shifting visuals */
     }
 
-    /* Thumb: outline only, transparent centre so track image shows through */
+    /* Track — WebKit */
+    #appRoot input[type="range"]::-webkit-slider-runnable-track {
+      height: var(--slider-track-h);
+      border-radius: 999px;
+      background: #cfd8dc;       /* fallback, will be overridden per-id with images below */
+      background-position: center;
+      background-repeat: no-repeat;
+      background-size: cover;
+    }
+
+    /* Track — Firefox */
+    #appRoot input[type="range"]::-moz-range-track {
+      height: var(--slider-track-h);
+      border-radius: 999px;
+      background: #cfd8dc;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-size: cover;
+    }
+
+    /* Thumb — transparent fill, outline only */
     #appRoot input[type="range"]::-webkit-slider-thumb {
       -webkit-appearance: none;
-      width: 40px;
-      height: 40px;
+      width: var(--slider-thumb-d);
+      height: var(--slider-thumb-d);
       border-radius: 50%;
-      background: transparent;      /* key: see-through */
-      border: 3px solid #0078b4;    /* outline */
+      background: transparent;
+      border: 3px solid var(--thumb-outline);
       box-shadow: none;
-      margin-top: -8px;             /* centers on a 12px track */
+      /* Center thumb vertically over thicker track (WebKit honors margin-top) */
+      margin-top: calc((var(--slider-track-h) - var(--slider-thumb-d)) / 2);
     }
     #appRoot input[type="range"]::-moz-range-thumb {
-      width: 40px;
-      height: 40px;
+      width: var(--slider-thumb-d);
+      height: var(--slider-thumb-d);
       border-radius: 50%;
-      background: transparent;      /* key: see-through */
-      border: 6px solid #0078b4;   
+      background: transparent;
+      border: 3px solid var(--thumb-outline);
       box-shadow: none;
     }
 
-    /* Accessibility: visible focus ring without filling the thumb */
+    /* Focus ring on thumb without filling it */
     #appRoot input[type="range"]:focus-visible::-webkit-slider-thumb {
       outline: none;
       box-shadow: 0 0 0 3px rgba(38,50,56,.25);
@@ -144,85 +176,39 @@
     #appRoot input[type="range"]:focus-visible::-moz-range-thumb {
       outline: none;
       box-shadow: 0 0 0 3px rgba(38,50,56,.25);
-    }/* Thumb: outline only, transparent centre so track image shows through */
-    #appRoot input[type="range"]::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      width: 50x;
-      height: 40px;
-      border-radius: 50%;
-      background: transparent;      /* key: see-through */
-      border: 3px solid #0078b4;      /* outline */
-      box-shadow: none;
-      margin-top: -8px;             /* centers on a 12px track */
-    }
-    #appRoot input[type="range"]::-moz-range-thumb {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background: transparent;      /* key: see-through */
-      border: 6px solid #0078b4;   
-      box-shadow: none;
     }
 
-    /* Accessibility: visible focus ring without filling the thumb */
-    #appRoot input[type="range"]:focus-visible::-webkit-slider-thumb {
-      outline: none;
-      box-shadow: 0 0 0 3px rgba(38,50,56,.25);
-    }
-    #appRoot input[type="range"]:focus-visible::-moz-range-thumb {
-      outline: none;
-      box-shadow: 0 0 0 3px rgba(38,50,56,.25);
-    }
+    /* ===== Per-slider TRACK IMAGES (both WebKit & Firefox) ===== */
+    #appRoot #background::-webkit-slider-runnable-track { background-image: url('https://res.cloudinary.com/dlginribm/image/upload/v1756743258/colour_zes2mh.png'); }
+    #appRoot #brushColor::-webkit-slider-runnable-track { background-image: url('https://res.cloudinary.com/dlginribm/image/upload/v1756743258/brightness_clear_z6urk1.png'); }
+    #appRoot #occludeCenter::-webkit-slider-runnable-track { background-image: url('https://res.cloudinary.com/dlginribm/image/upload/v1756743258/centre_clear_yssx9k.png'); }
+    #appRoot #occludeEdge::-webkit-slider-runnable-track { background-image: url('https://res.cloudinary.com/dlginribm/image/upload/v1756743258/edge_clear_jbudwf.png'); }
+    #appRoot #blur::-webkit-slider-runnable-track { background-image: url('https://res.cloudinary.com/dlginribm/image/upload/v1756743258/blur_clear_v2_j4ntub.png'); }
+    #appRoot #thickness::-webkit-slider-runnable-track { background-image: url('https://res.cloudinary.com/dlginribm/image/upload/v1756743258/thickness_clear_kzsa5m.png'); }
 
-    /* Optional: increase overall clickable area but keep visuals centered */
-    #appRoot .slider-group {
-      display: flex;
-      align-items: center;       /* vertical centering of labels and sliders */
-      min-height: 48px;          /* ensures enough finger space */
-    }
-    /* Slider track images (scoped) */
-    #appRoot #background::-webkit-slider-runnable-track{ background:url('https://res.cloudinary.com/dlginribm/image/upload/v1756743258/colour_zes2mh.png') no-repeat center/cover; }
-    #appRoot #brushColor::-webkit-slider-runnable-track{ background:url('https://res.cloudinary.com/dlginribm/image/upload/v1756743258/brightness_clear_z6urk1.png') no-repeat center/cover; }
-    #appRoot #occludeCenter::-webkit-slider-runnable-track{ background:url('https://res-console.cloudinary.com/dlginribm/thumbnails/v1/image/upload/v1756743258/Y2VudHJlX2NsZWFyX3lzc3g5aw==/as_is') no-repeat center/cover; }
-    #appRoot #occludeEdge::-webkit-slider-runnable-track{ background:url('https://res-console.cloudinary.com/dlginribm/thumbnails/v1/image/upload/v1756743258/ZWRnZV9jbGVhcl9qYnVkd2Y=/as_is') no-repeat center/cover; }
-    #appRoot #blur::-webkit-slider-runnable-track{ background:url('https://res.cloudinary.com/dlginribm/image/upload/v1756743258/blur_clear_v2_j4ntub.png') no-repeat center/cover; }
-    #appRoot #thickness::-webkit-slider-runnable-track{ background:url('https://res.cloudinary.com/dlginribm/image/upload/v1756743258/thickness_clear_kzsa5m.png') no-repeat center/cover; }
-    #appRoot #background::-moz-range-track{ background:url('https://res.cloudinary.com/dlginribm/image/upload/v1756743258/colour_zes2mh.png') no-repeat center/cover; }
-    #appRoot #brushColor::-moz-range-track{ background:url('https://res.cloudinary.com/dlginribm/image/upload/v1756743258/brightness_clear_z6urk1.png') no-repeat center/cover; }
-    #appRoot #occludeCenter::-moz-range-track{ background:url('https://res-console.cloudinary.com/dlginribm/thumbnails/v1/image/upload/v1756743258/Y2VudHJlX2NsZWFyX3lzc3g5aw==/as_is') no-repeat center/cover; }
-    #appRoot #occludeEdge::-moz-range-track{ background:url('https://res-console.cloudinary.com/dlginribm/thumbnails/v1/image/upload/v1756743258/ZWRnZV9jbGVhcl9qYnVkd2Y=/as_is') no-repeat center/cover; }
-    #appRoot #blur::-moz-range-track{ background:url('https://res.cloudinary.com/dlginribm/image/upload/v1756743258/blur_clear_v2_j4ntub.png') no-repeat center/cover; }
-    #appRoot #thickness::-moz-range-track{ background:url('https://res.cloudinary.com/dlginribm/image/upload/v1756743258/thickness_clear_kzsa5m.png') no-repeat center/cover; }
+    #appRoot #background::-moz-range-track { background-image: url('https://res.cloudinary.com/dlginribm/image/upload/v1756743258/colour_zes2mh.png'); }
+    #appRoot #brushColor::-moz-range-track { background-image: url('https://res.cloudinary.com/dlginribm/image/upload/v1756743258/brightness_clear_z6urk1.png'); }
+    #appRoot #occludeCenter::-moz-range-track { background-image: url('https://res.cloudinary.com/dlginribm/image/upload/v1756743258/centre_clear_yssx9k.png'); }
+    #appRoot #occludeEdge::-moz-range-track { background-image: url('https://res.cloudinary.com/dlginribm/image/upload/v1756743258/edge_clear_jbudwf.png'); }
+    #appRoot #blur::-moz-range-track { background-image: url('https://res.cloudinary.com/dlginribm/image/upload/v1756743258/blur_clear_v2_j4ntub.png'); }
+    #appRoot #thickness::-moz-range-track { background-image: url('https://res.cloudinary.com/dlginribm/image/upload/v1756743258/thickness_clear_kzsa5m.png'); }
 
-    /* Saving overlay (no text) */
-    #savingOverlay{
-      position:fixed; inset:0; background:rgba(0,0,0,0.25);
-      display:none; z-index:9999;
+    /* ===== Saving & Dev overlays (unchanged; included for completeness) ===== */
+    #savingOverlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.25);
+      display: none; z-index: 9999;
     }
-    /* Dev confirm dialog */
-    #devConfirm{
-      position:fixed; inset:0; background:rgba(0,0,0,0.4); display:none; z-index:9999;
-      align-items:center; justify-content:center;
+    #devConfirm {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none; z-index: 9999;
+      align-items: center; justify-content: center;
     }
-    #devConfirm .panel{
-      background:#fff; color:#111; padding:16px; border-radius:12px; width:min(90vw, 520px);
+    #devConfirm .panel {
+      background: #fff; color: #111; padding: 16px; border-radius: 12px; width: min(90vw, 520px);
     }
-    #devConfirm .actions{ display:flex; gap:10px; justify-content:flex-end; margin-top:10px; }
-    #devConfirm button{ padding:10px 18px; border:none; border-radius:10px; }
-    #devConfirm .cancel{ background:#ddd; }
-    #devConfirm .ok{ background:#333; color:#fff; }
-    /* Wrap around the canvas (whatever your wrapper is) */
-    #canvasWrap, .canvas-wrap, .viewport-wrap {
-      line-height: 0;        /* kill inline spacing */
-      overflow: hidden;      /* hide any subpixel seams */
-    }
-
-    /* The drawing canvas itself */
-    #drawingCanvas {
-      display: block;        /* avoid inline gap */
-      vertical-align: top;   /* belt + braces */
-      transform: translateZ(0); /* nudge GPU -> reduces anti-aliased seams */
-    }
+    #devConfirm .actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px; }
+    #devConfirm button { padding: 10px 18px; border: none; border-radius: 10px; }
+    #devConfirm .cancel { background: #ddd; }
+    #devConfirm .ok { background: #333; color: #fff; }
 
   </style>
 </head>
