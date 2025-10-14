@@ -15,7 +15,7 @@ const SESSIONS = [
   ["Friday October 24th at 12:40", "202510241240"],
   ["Friday October 24th at 14:20", "202510241420"],
   ["Friday October 24th at 16:00", "202510241600"],
-  ["Friday October 24th at 16:40", "202510241540"],
+  ["Friday October 24th at 17:40", "202510241740"],
 ];
 function sessionCodeToDisplay(code){
   const f = SESSIONS.find(([,c])=>c===code);
