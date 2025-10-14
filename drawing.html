@@ -15,8 +15,8 @@
       --controls-width: 600px;
 
       /* Slider sizing vars — TWEAK THESE 2 */
-      --slider-track-h: 28px;       /* track height (image area) */
-      --slider-thumb-d: 34px;       /* thumb diameter */
+      --slider-track-h: 42px;       /* track height (image area) */
+      --slider-thumb-d: 38px;       /* thumb diameter */
 
       /* Colors */
       --thumb-outline: #005197;
@@ -131,7 +131,7 @@
     #appRoot input[type="range"]::-webkit-slider-runnable-track {
       height: var(--slider-track-h);
       border-radius: 999px;
-      background: #cfd8dc;       /* fallback, will be overridden per-id with images below */
+      background: transparent;  
       background-position: center;
       background-repeat: no-repeat;
       background-size: cover;
@@ -141,7 +141,7 @@
     #appRoot input[type="range"]::-moz-range-track {
       height: var(--slider-track-h);
       border-radius: 999px;
-      background: #cfd8dc;
+      background: transparent;  
       background-position: center;
       background-repeat: no-repeat;
       background-size: cover;
