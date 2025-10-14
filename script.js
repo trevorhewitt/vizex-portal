@@ -1362,47 +1362,107 @@ class DrawingApp {
 
         // Triple box blur (H→V is one “box”). We do 3 boxes: (H,V) x3
         _blurImageDataTripleBox(srcData, w, h, radius) {
-        const r = Math.max(1, radius | 0);
-        this._resizeBlurBuffers(w, h);
+            const r = Math.max(1, radius | 0);
+            this._resizeBlurBuffers(w, h);
 
-        const src = srcData.data;
-        const A = this._blurBufA;  // work buffer
-        const B = this._blurBufB;  // work buffer
+            const src = srcData.data;     // straight RGBA from canvas
+            const A = this._blurBufA;     // work buffer
+            const B = this._blurBufB;     // work buffer
 
-        // Pass 1: src -> A (H), then A -> B (V)
-        this._boxBlur1D(src, A, w, h, r, 'h');
-        this._boxBlur1D(A,   B, w, h, r, 'v');
-        // Pass 2: B -> A (H), then A -> B (V)
-        this._boxBlur1D(B,   A, w, h, r, 'h');
-        this._boxBlur1D(A,   B, w, h, r, 'v');
-        // Pass 3: B -> A (H), then A -> B (V) → final in B
-        this._boxBlur1D(B,   A, w, h, r, 'h');
-        this._boxBlur1D(A,   B, w, h, r, 'v');
+            // 1) Straight → Premultiplied into A
+            this._premultiplyStraightRGBA(src, A);
 
-        return B; // Uint8ClampedArray of blurred pixels
+            // 2) Three box passes on premultiplied data (A ↔ B)
+            // Pass 1: A -> B (H then V)
+            this._boxBlur1D(A, B, w, h, r, 'h');
+            this._boxBlur1D(B, A, w, h, r, 'v');
+            // Pass 2: A -> B
+            this._boxBlur1D(A, B, w, h, r, 'h');
+            this._boxBlur1D(B, A, w, h, r, 'v');
+            // Pass 3: A -> B (final premultiplied result in B)
+            this._boxBlur1D(A, B, w, h, r, 'h');
+            this._boxBlur1D(B, A, w, h, r, 'v');
+
+            // 3) Premultiplied → Straight into B (reuse B as output array)
+            this._unpremultiplyToStraight(A, B);
+
+            return B; // straight RGBA bytes, blurred
         }
+
 
         /**
          * Apply blur to the current offscreen (strokes/erasers only) and return a blurred canvas.
          * We do not modify this._offscreen; we draw it into _blurScratch, blur in-place, and return _blurScratch.
          */
         _getBlurredStrokeLayer(width, height, radius) {
-        if (this._blurScratch.width !== width || this._blurScratch.height !== height) {
-            this._blurScratch.width = width;
-            this._blurScratch.height = height;
-            this._blurScratchCtx = this._blurScratch.getContext('2d', { willReadFrequently: true });
-        }
-        const sc = this._blurScratchCtx;
-        sc.setTransform(1,0,0,1,0,0);
-        sc.clearRect(0, 0, width, height);
-        sc.drawImage(this._offscreen, 0, 0);
+            if (this._blurScratch.width !== width || this._blurScratch.height !== height) {
+                this._blurScratch.width = width;
+                this._blurScratch.height = height;
+                this._blurScratchCtx = this._blurScratch.getContext('2d', { willReadFrequently: true });
+            }
+            const sc = this._blurScratchCtx;
+            sc.setTransform(1, 0, 0, 1, 0, 0);
+            sc.clearRect(0, 0, width, height);
 
-        const img = sc.getImageData(0, 0, width, height);
-        const blurred = this._blurImageDataTripleBox(img, width, height, radius);
-        img.data.set(blurred);
-        sc.putImageData(img, 0, 0);
-        return this._blurScratch;
+            // Start from offscreen (strokes + erasures, no background)
+            sc.drawImage(this._offscreen, 0, 0);
+
+            // Grab pixels, blur in premultiplied space, write back
+            const img = sc.getImageData(0, 0, width, height);
+            const blurredStraight = this._blurImageDataTripleBox(img, width, height, radius);
+            img.data.set(blurredStraight);
+            sc.putImageData(img, 0, 0);
+            return this._blurScratch;
+        }
+
+    // Convert straight RGBA → premultiplied RGBA (RGB *= A/255). Alpha unchanged.
+    _premultiplyStraightRGBA(src, dst) {
+        // src and dst are Uint8ClampedArray of same length
+        const n = src.length;
+        for (let i = 0; i < n; i += 4) {
+            const a = src[i + 3];
+            if (a === 255) {
+            // Opaque fast-path
+            dst[i]     = src[i];
+            dst[i + 1] = src[i + 1];
+            dst[i + 2] = src[i + 2];
+            dst[i + 3] = 255;
+            } else if (a === 0) {
+            dst[i] = dst[i + 1] = dst[i + 2] = 0;
+            dst[i + 3] = 0;
+            } else {
+            // Integer multiply/divide with rounding to reduce banding
+            dst[i]     = ((src[i]     * a + 127) / 255) | 0;
+            dst[i + 1] = ((src[i + 1] * a + 127) / 255) | 0;
+            dst[i + 2] = ((src[i + 2] * a + 127) / 255) | 0;
+            dst[i + 3] = a;
+            }
+        }
     }
+
+    // Convert premultiplied RGBA → straight RGBA (RGB /= A/255). Alpha unchanged.
+    _unpremultiplyToStraight(src, dst) {
+        const n = src.length;
+        for (let i = 0; i < n; i += 4) {
+            const a = src[i + 3];
+            if (a === 255) {
+            dst[i]     = src[i];
+            dst[i + 1] = src[i + 1];
+            dst[i + 2] = src[i + 2];
+            dst[i + 3] = 255;
+            } else if (a === 0) {
+            dst[i] = dst[i + 1] = dst[i + 2] = 0;
+            dst[i + 3] = 0;
+            } else {
+            // Multiply by 255 then divide by alpha, with rounding
+            dst[i]     = Math.min(255, ((src[i]     * 255 + (a >> 1)) / a) | 0);
+            dst[i + 1] = Math.min(255, ((src[i + 1] * 255 + (a >> 1)) / a) | 0);
+            dst[i + 2] = Math.min(255, ((src[i + 2] * 255 + (a >> 1)) / a) | 0);
+            dst[i + 3] = a;
+            }
+        }
+    }
+
 
     doDrawingPipeline(ctx, width, height, state, paths, drawing, currentPath) {
         // Reset main canvas
