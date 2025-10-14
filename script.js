@@ -174,6 +174,12 @@ class DrawingApp {
         this._offscreenCtx = this._offscreen.getContext('2d');
         this._rafPending = false;
 
+        this._blurScratch = document.createElement('canvas');
+        this._blurScratchCtx = this._blurScratch.getContext('2d', { willReadFrequently: true });
+        this._blurBufA = null;  // Uint8ClampedArray
+        this._blurBufB = null;  // Uint8ClampedArray
+        this._blurCap = 0;      // tracks allocated size
+
         /* Cache last filter string to skip redundant assignments */
         this._lastOffFilter = 'none';
 
@@ -1275,6 +1281,129 @@ class DrawingApp {
         }
     }
 
+    /* ===== Deterministic pixel blur (triple box ≈ Gaussian) ===== */
+
+    _resizeBlurBuffers(w, h) {
+        const need = w * h * 4;
+        if (this._blurCap >= need) return;
+            this._blurBufA = new Uint8ClampedArray(need);
+            this._blurBufB = new Uint8ClampedArray(need);
+            this._blurCap = need;
+        }
+
+        // 1D box-blur pass. dir = 'h' (horizontal) or 'v' (vertical).
+        _boxBlur1D(src, dst, w, h, r, dir) {
+        const C = 4;
+        const win = r * 2 + 1;
+
+        if (dir === 'h') {
+            const maxX = w - 1;
+            for (let y = 0; y < h; y++) {
+            const row = y * w * C;
+            let sumR = 0, sumG = 0, sumB = 0, sumA = 0;
+
+            // prime window
+            for (let x = -r; x <= r; x++) {
+                const cx = (x < 0) ? 0 : (x > maxX ? maxX : x);
+                const i = row + cx * C;
+                sumR += src[i]; sumG += src[i+1]; sumB += src[i+2]; sumA += src[i+3];
+            }
+
+            for (let x = 0; x < w; x++) {
+                const o = row + x * C;
+                dst[o]   = (sumR / win) | 0;
+                dst[o+1] = (sumG / win) | 0;
+                dst[o+2] = (sumB / win) | 0;
+                dst[o+3] = (sumA / win) | 0;
+
+                const outL = x - r;  // leaving index
+                const inR  = x + r + 1; // entering index
+                const iL = row + ((outL < 0 ? 0 : outL > maxX ? maxX : outL) * C);
+                const iR = row + ((inR  < 0 ? 0 : inR  > maxX ? maxX : inR ) * C);
+
+                sumR += src[iR]   - src[iL];
+                sumG += src[iR+1] - src[iL+1];
+                sumB += src[iR+2] - src[iL+2];
+                sumA += src[iR+3] - src[iL+3];
+            }
+            }
+        } else { // vertical
+            const maxY = h - 1;
+            for (let x = 0; x < w; x++) {
+            let sumR = 0, sumG = 0, sumB = 0, sumA = 0;
+
+            // prime window
+            for (let y = -r; y <= r; y++) {
+                const cy = (y < 0) ? 0 : (y > maxY ? maxY : y);
+                const i = (cy * w + x) * C;
+                sumR += src[i]; sumG += src[i+1]; sumB += src[i+2]; sumA += src[i+3];
+            }
+
+            for (let y = 0; y < h; y++) {
+                const o = (y * w + x) * C;
+                dst[o]   = (sumR / win) | 0;
+                dst[o+1] = (sumG / win) | 0;
+                dst[o+2] = (sumB / win) | 0;
+                dst[o+3] = (sumA / win) | 0;
+
+                const outT = y - r;
+                const inB  = y + r + 1;
+                const iT = ((outT < 0 ? 0 : outT > maxY ? maxY : outT) * w + x) * C;
+                const iB = ((inB  < 0 ? 0 : inB  > maxY ? maxY : inB ) * w + x) * C;
+
+                sumR += src[iB]   - src[iT];
+                sumG += src[iB+1] - src[iT+1];
+                sumB += src[iB+2] - src[iT+2];
+                sumA += src[iB+3] - src[iT+3];
+            }
+            }
+        }
+        }
+
+        // Triple box blur (H→V is one “box”). We do 3 boxes: (H,V) x3
+        _blurImageDataTripleBox(srcData, w, h, radius) {
+        const r = Math.max(1, radius | 0);
+        this._resizeBlurBuffers(w, h);
+
+        const src = srcData.data;
+        const A = this._blurBufA;  // work buffer
+        const B = this._blurBufB;  // work buffer
+
+        // Pass 1: src -> A (H), then A -> B (V)
+        this._boxBlur1D(src, A, w, h, r, 'h');
+        this._boxBlur1D(A,   B, w, h, r, 'v');
+        // Pass 2: B -> A (H), then A -> B (V)
+        this._boxBlur1D(B,   A, w, h, r, 'h');
+        this._boxBlur1D(A,   B, w, h, r, 'v');
+        // Pass 3: B -> A (H), then A -> B (V) → final in B
+        this._boxBlur1D(B,   A, w, h, r, 'h');
+        this._boxBlur1D(A,   B, w, h, r, 'v');
+
+        return B; // Uint8ClampedArray of blurred pixels
+        }
+
+        /**
+         * Apply blur to the current offscreen (strokes/erasers only) and return a blurred canvas.
+         * We do not modify this._offscreen; we draw it into _blurScratch, blur in-place, and return _blurScratch.
+         */
+        _getBlurredStrokeLayer(width, height, radius) {
+        if (this._blurScratch.width !== width || this._blurScratch.height !== height) {
+            this._blurScratch.width = width;
+            this._blurScratch.height = height;
+            this._blurScratchCtx = this._blurScratch.getContext('2d', { willReadFrequently: true });
+        }
+        const sc = this._blurScratchCtx;
+        sc.setTransform(1,0,0,1,0,0);
+        sc.clearRect(0, 0, width, height);
+        sc.drawImage(this._offscreen, 0, 0);
+
+        const img = sc.getImageData(0, 0, width, height);
+        const blurred = this._blurImageDataTripleBox(img, width, height, radius);
+        img.data.set(blurred);
+        sc.putImageData(img, 0, 0);
+        return this._blurScratch;
+    }
+
     doDrawingPipeline(ctx, width, height, state, paths, drawing, currentPath) {
         // Reset main canvas
         ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -1330,8 +1459,21 @@ class DrawingApp {
         // Paint background first (not blurred)
         ctx.setTransform(1,0,0,1,0,0);            // just in case
         ctx.filter = 'none';
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.filter = 'none';
         ctx.fillStyle = `rgb(${state.background},${state.background},${state.background})`;
         ctx.fillRect(0, 0, width, height);
+
+        // Composite strokes: if blur requested, use our pixel-blur layer; otherwise draw raw
+        if (effBlur > 0) {
+        const blurredLayer = this._getBlurredStrokeLayer(width, height, effBlur);
+        ctx.drawImage(blurredLayer, 0, 0);
+        } else {
+        ctx.drawImage(this._offscreen, 0, 0);
+        }
+
+        // Reset any filter for future draws
+        ctx.filter = 'none';
 
         // Now blur ONLY the stroke layer when compositing it onto the main canvas.
         // This is the key change that fixes iPad/WebKit.
