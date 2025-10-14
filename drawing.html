@@ -28,7 +28,7 @@
       aspect-ratio: 1 / 1;
       height: auto;
       overflow: hidden;
-      border: 8px solid green; /* this one doesn't seem to work */
+      border: 4px solid green; /* this one doesn't seem to work */
       position: relative;
       touch-action: none;
       margin-bottom: calc(20px * var(--ui-scale));
@@ -42,7 +42,7 @@
     #appRoot #viewport{
       /* no fixed height here; aspect-ratio handles it */
       overflow:hidden;
-      border:8px solid green;
+      border:4px solid green;
       position:relative;
       touch-action:none;
       margin-bottom:calc(20px * var(--ui-scale));
@@ -91,27 +91,49 @@
       align-self:end; height:var(--slider-track-h); min-height:0; width:50px; padding:0; border-radius:0; background:#fff; border:1px solid #ccc; color:inherit;
     }
     #appRoot #flipH{ background:#fff; border:1px solid #ccc; }
-    #appRoot input[type="range"]{ -webkit-appearance:none; appearance:none; width:100%; height:var(--slider-track-h); background:none; }
-    #appRoot input[type="range"]::-webkit-slider-runnable-track{
-      height:var(--slider-track-h); background-size:100% 100%; background-repeat:no-repeat; background-position:center;
+    #appRoot input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      background: transparent;  /* prevents extra gray track in Safari */
+      padding: 10px 0;          /* increases hit area without visual misalignment */
     }
-    #appRoot input[type="range"]::-webkit-slider-thumb{
-      -webkit-appearance:none; appearance:none; width:var(--slider-thumb-d); height:var(--slider-thumb-d);
-      margin-top:calc((var(--slider-track-h) - var(--slider-thumb-d))/2); border:var(--thumb-border); border-radius:50%;
-      background:transparent; box-shadow:0 0 2px #888;
+
+    /* WebKit (Safari, iPad, Chrome) */
+    #appRoot input[type="range"]::-webkit-slider-runnable-track {
+      height: 12px;             /* visual track thickness */
+      background: #cfd8dc;
+      border-radius: 999px;
     }
-    #appRoot input[type="range"]::-moz-range-track{
-      height:var(--slider-track-h); background-size:100% 100%; background-repeat:no-repeat; background-position:center;
+    #appRoot input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 28px;              /* larger touch thumb */
+      height: 28px;
+      border-radius: 50%;
+      border: 2px solid #263238;
+      background: #fafafa;
+      margin-top: -8px;         /* centers thumb vertically on 12px track */
     }
-    #appRoot input[type="range"]::-moz-range-thumb{
-      width:var(--slider-thumb-d); height:var(--slider-thumb-d); border:var(--thumb-border); border-radius:50%; background:transparent; box-shadow:0 0 2px #888;
+
+    /* Firefox */
+    #appRoot input[type="range"]::-moz-range-track {
+      height: 12px;
+      background: #cfd8dc;
+      border-radius: 999px;
     }
-    #appRoot input[type="range"]::-moz-range-progress{ background-color:transparent; }
-    #appRoot input[type="range"]::-ms-track{
-      height:var(--slider-track-h); background:transparent; border-color:transparent; color:transparent;
+    #appRoot input[type="range"]::-moz-range-thumb {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 2px solid #263238;
+      background: #fafafa;
     }
-    #appRoot input[type="range"]::-ms-thumb{
-      width:var(--slider-thumb-d); height:var(--slider-thumb-d); border:var(--thumb-border); border-radius:50%; background:transparent; box-shadow:0 0 2px #888;
+
+    /* Optional: increase overall clickable area but keep visuals centered */
+    #appRoot .slider-group {
+      display: flex;
+      align-items: center;       /* vertical centering of labels and sliders */
+      min-height: 48px;          /* ensures enough finger space */
     }
     /* Slider track images (scoped) */
     #appRoot #background::-webkit-slider-runnable-track{ background:url('https://res.cloudinary.com/dlginribm/image/upload/v1756743258/colour_zes2mh.png') no-repeat center/cover; }
