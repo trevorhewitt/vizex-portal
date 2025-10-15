@@ -5,7 +5,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>RESEARCHER USE ONLY — parameters input</title>
   <link rel="stylesheet" href="assets/style.css" />
+  <!-- Keep defer to preserve your normal load order -->
   <script src="assets/util.js" defer></script>
+  <style>
+    /* Tiny helper styles for clarity */
+    .note { font-size: 12px; opacity: .8; }
+    .pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; line-height:18px; }
+    .pill.auto { background:#e8f5e9; color:#1b5e20; }
+    .pill.manual { background:#fff3e0; color:#e65100; }
+    .diag {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 12px; line-height: 1.45; white-space: pre-wrap;
+      background: #0b0f14; color: #e6edf3; border-radius: 8px; padding: 12px;
+      max-height: 220px; overflow:auto; border:1px solid #223;
+    }
+    .row-inline { display:flex; align-items:center; gap:8px; }
+    .form-grid label .row-inline > input[type="text"] { flex: 1; }
+    .btn-ghost { background:transparent; border:1px solid #999; border-radius:8px; padding:6px 10px; cursor:pointer; }
+  </style>
 </head>
 <body data-page="index">
   <div class="page">
@@ -17,6 +34,7 @@
           <label>
             Session
             <select id="sessionSelect" aria-label="session"></select>
+            <div class="note" id="sessionNote"></div>
           </label>
 
           <label>
@@ -30,8 +48,13 @@
           </label>
 
           <label>
-            Trial order (string of condition characters; autoloads from session; manual edits override)
-            <input type="text" id="orderInput" inputmode="text" autocomplete="off" />
+            Trial order
+            <div class="row-inline">
+              <input type="text" id="orderInput" inputmode="text" autocomplete="off" />
+              <span id="orderModePill" class="pill auto" title="Auto-filled from session">AUTO</span>
+              <button id="resetOrderBtn" class="btn-ghost" type="button" title="Reset to session default">Reset</button>
+            </div>
+            <div class="note">String of condition characters. If you edit this field, it switches to <b>MANUAL</b> and won’t be overwritten by session changes.</div>
           </label>
 
           <label>
@@ -57,7 +80,36 @@
     </div>
   </div>
 
+  <!-- Verbose diagnostics panel -->
+  <details style="margin:16px;">
+    <summary>Diagnostics (click to expand)</summary>
+    <div id="diag" class="diag" aria-live="polite"></div>
+  </details>
+
   <script>
+    /***********************
+     * CONFIG + FALLBACKS  *
+     ***********************/
+    // Fallback SESSIONS (used only if VE.SESSIONS is missing)
+    const FALLBACK_SESSIONS = [
+      ["Friday October 17th at 9:20",  "202510170920"],
+      ["Friday October 17th at 11:00", "202510171100"],
+      ["Friday October 17th at 12:40", "202510171240"],
+      ["Friday October 17th at 14:20", "202510171420"],
+      ["Friday October 17th at 16:00", "202510171600"],
+      ["Saturday October 18th at 9:20","202510180920"],
+      ["Saturday October 18th at 11:00","202510181100"],
+      ["Saturday October 18th at 12:40","202510181240"],
+      ["Saturday October 18th at 14:20","202510181420"],
+      ["Saturday October 18th at 16:00","202510181600"],
+      ["Friday October 24th at 9:20",  "202510240920"],
+      ["Friday October 24th at 11:00", "202510241100"],
+      ["Friday October 24th at 12:40", "202510241240"],
+      ["Friday October 24th at 14:20", "202510241420"],
+      ["Friday October 24th at 16:00", "202510241600"],
+      ["Friday October 24th at 17:40", "202510241740"],
+    ];
+
     // Session → default trial-order mapping
     const SESSION_ORDERS = {
       "202510170920": "D72B2XC4534AX566311",
@@ -78,78 +130,193 @@
       "202510241740": "D64A3X721B5CX245613",
     };
 
-    document.addEventListener("DOMContentLoaded", () => {
-      const params = VE.parseParams();
+    /***********************
+     * LOGGING UTILITIES   *
+     ***********************/
+    const diagEl = () => document.getElementById("diag");
+    function log(...args) {
+      console.log("[params-input]", ...args);
+      const el = diagEl();
+      if (el) el.textContent += args.map(a => {
+        try { return typeof a === "string" ? a : JSON.stringify(a); }
+        catch { return String(a); }
+      }).join(" ") + "\n";
+    }
+    function hr(label="") { log("─".repeat(36) + (label ? " " + label : "")); }
 
-      const sel       = document.getElementById("sessionSelect");
-      const nameInput = document.getElementById("nameInput");
-      const codeInput = document.getElementById("codeInput");
-      const orderInput= document.getElementById("orderInput");
-      const indexInput= document.getElementById("indexInput");
-      const modeSelect= document.getElementById("modeSelect");
-      const nextBtn   = document.getElementById("nextBtn");
+    /***********************
+     * READINESS HANDLER   *
+     ***********************/
+    /**
+     * Waits for VE namespace and VE.SESSIONS to be available (from util.js),
+     * with fallback after timeout. Prints step-by-step diagnostics.
+     */
+    function waitForVE(maxMs = 4000, stepMs = 50) {
+      return new Promise((resolve) => {
+        const start = performance.now();
+        log("waitForVE: started, maxMs =", maxMs, "stepMs =", stepMs);
 
-      // Track whether user has manually edited the trial order
+        const tick = () => {
+          const ok = (window.VE && Array.isArray(window.VE.SESSIONS) && window.VE.SESSIONS.length > 0);
+          if (ok) {
+            log("waitForVE: VE.SESSIONS available after", Math.round(performance.now() - start), "ms.");
+            return resolve({ ok: true, sessions: window.VE.SESSIONS, source: "VE.SESSIONS" });
+          }
+          if (performance.now() - start >= maxMs) {
+            log("waitForVE: timeout; falling back to local FALLBACK_SESSIONS.");
+            return resolve({ ok: false, sessions: FALLBACK_SESSIONS, source: "FALLBACK_SESSIONS" });
+          }
+          setTimeout(tick, stepMs);
+        };
+        tick();
+      });
+    }
+
+    /***********************
+     * MAIN INIT           *
+     ***********************/
+    document.addEventListener("DOMContentLoaded", async () => {
+      hr("DOMContentLoaded");
+      const hasVE = !!window.VE;
+      log("VE present on window?", hasVE);
+
+      // Read query params safely (fallback if VE.parseParams not ready)
+      const params = (hasVE && typeof VE.parseParams === "function")
+        ? VE.parseParams()
+        : (() => {
+            // Simple fallback parser
+            const o = {};
+            location.search.replace(/^\?/, "").split("&").filter(Boolean).forEach(kv => {
+              const [k, v=""] = kv.split("=");
+              o[decodeURIComponent(k)] = decodeURIComponent(v);
+            });
+            return o;
+          })();
+
+      log("Query params:", params);
+
+      // Grab elements
+      const sel         = document.getElementById("sessionSelect");
+      const nameInput   = document.getElementById("nameInput");
+      const codeInput   = document.getElementById("codeInput");
+      const orderInput  = document.getElementById("orderInput");
+      const indexInput  = document.getElementById("indexInput");
+      const modeSelect  = document.getElementById("modeSelect");
+      const nextBtn     = document.getElementById("nextBtn");
+      const sessionNote = document.getElementById("sessionNote");
+      const orderModePill = document.getElementById("orderModePill");
+      const resetOrderBtn = document.getElementById("resetOrderBtn");
+
+      // MANUAL/AUTO state
       let manualOrderOverride = false;
 
-      // Populate sessions (VE.SESSIONS is provided by util.js)
-      VE.SESSIONS.forEach(([label, code]) => {
-        const opt = document.createElement("option");
-        opt.value = code;
-        opt.textContent = label;
-        sel.appendChild(opt);
-      });
+      // Helper: set pill UI
+      function setOrderPill(manual) {
+        manualOrderOverride = !!manual;
+        orderModePill.textContent = manual ? "MANUAL" : "AUTO";
+        orderModePill.classList.toggle("manual", manual);
+        orderModePill.classList.toggle("auto", !manual);
+      }
 
-      // Helper to apply default trial order for the selected session,
-      // but only if the user hasn't manually overridden it
+      // Helper: apply default order if not manual
       function applyDefaultOrderIfAllowed() {
-        if (manualOrderOverride) return;
         const sessionCode = sel.value;
         const defaultOrder = SESSION_ORDERS[sessionCode] || "";
-        orderInput.value = defaultOrder;
+        log("applyDefaultOrderIfAllowed: manual?", manualOrderOverride, "| session:", sessionCode, "| default:", defaultOrder);
+        if (!manualOrderOverride) {
+          orderInput.value = defaultOrder;
+          log("→ orderInput set to default for session.");
+        } else {
+          log("→ manual override in effect; leaving orderInput unchanged.");
+        }
       }
+
+      // Wait for VE.SESSIONS or fallback
+      const ready = await waitForVE();
+      log("Sessions source:", ready.source, "| count:", ready.sessions.length);
+      sessionNote.textContent = `Source: ${ready.source} (count: ${ready.sessions.length})`;
+
+      // Populate sessions
+      sel.innerHTML = "";
+      ready.sessions.forEach(([label, code]) => {
+        const opt = document.createElement("option");
+        opt.value = code; opt.textContent = label;
+        sel.appendChild(opt);
+      });
+      log("Session select populated.");
 
       // Prefill from query (if any)
-      if (params.s) sel.value = params.s;
-      if (params.n) nameInput.value = params.n;
-      if (params.p) codeInput.value = params.p;
-      if (params.i) indexInput.value = params.i;
-      if (params.m) modeSelect.value = params.m;
+      if (params.s) { sel.value = params.s; log("Prefill: s =", params.s); }
+      if (params.n) { nameInput.value = params.n; log("Prefill: n =", params.n); }
+      if (params.p) { codeInput.value = params.p; log("Prefill: p =", params.p); }
+      if (params.i) { indexInput.value = params.i; log("Prefill: i =", params.i); }
+      if (params.m) { modeSelect.value = params.m; log("Prefill: m =", params.m); }
 
-      // If t provided in query, it's a manual override
+      // Trial order handling:
+      // If t provided → MANUAL, else AUTO from session default
       if (typeof params.t === "string") {
         orderInput.value = params.t;
-        manualOrderOverride = true;
+        setOrderPill(true);
+        log("Prefill: t (manual override) =", params.t);
       } else {
-        // otherwise, apply the default from currently selected session (if any)
+        setOrderPill(false);
         applyDefaultOrderIfAllowed();
       }
 
-      // When session changes, refresh trial order unless user has overridden
+      // Change handlers
       sel.addEventListener("change", () => {
+        log("Session changed to", sel.value);
         applyDefaultOrderIfAllowed();
       });
 
-      // Mark manual override if user types in the order field
       orderInput.addEventListener("input", () => {
-        manualOrderOverride = true;
+        if (!manualOrderOverride) {
+          log("orderInput edited by user → switching to MANUAL mode.");
+          setOrderPill(true);
+        } else {
+          log("orderInput edited while already MANUAL.");
+        }
       });
 
-      // Build query and go to param-check.html
+      resetOrderBtn.addEventListener("click", () => {
+        log("Reset button clicked → switching to AUTO and applying default.");
+        setOrderPill(false);
+        applyDefaultOrderIfAllowed();
+      });
+
+      // Next navigation
       nextBtn.addEventListener("click", () => {
         const nextParams = {
-          p: codeInput.value.trim(),
-          n: nameInput.value.trim(),
+          p: (codeInput.value || "").trim(),
+          n: (nameInput.value || "").trim(),
           s: sel.value,
-          t: orderInput.value.trim(),
+          t: (orderInput.value || "").trim(),
           i: String(parseInt(indexInput.value || "0", 10) || 0),
           m: modeSelect.value
         };
-        VE.goto("param-check.html", nextParams);
+        log("Next clicked → VE.goto with:", nextParams);
+
+        if (window.VE && typeof VE.goto === "function") {
+          VE.goto("param-check.html", nextParams);
+        } else {
+          // Safe fallback so you can still observe the built URL if VE.goto is unavailable
+          const qs = Object.entries(nextParams)
+            .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join("&");
+          const url = `param-check.html?${qs}`;
+          log("VE.goto not available; fallback to location.href =", url);
+          location.href = url;
+        }
       });
 
-      // Optional dev footer (as in your original)
-      VE.renderDevFooter(params, "index");
+      // Optional dev footer
+      if (window.VE && typeof VE.renderDevFooter === "function") {
+        log("Rendering dev footer…");
+        VE.renderDevFooter(params, "index");
+      } else {
+        log("VE.renderDevFooter unavailable (skipped).");
+      }
+
+      hr("Init complete");
     });
   </script>
 </body>
