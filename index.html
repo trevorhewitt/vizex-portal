@@ -220,7 +220,7 @@
 
       const ready = await waitForVE();
       log("Sessions source:", ready.source, "| count:", ready.sessions.length);
-      sessionNote.textContent = `Source: ${ready.source} (count: ${ready.sessions.length})`;
+      sessionNote.textContent = ''; //`Source: ${ready.source} (count: ${ready.sessions.length})`;
 
       // Populate sessions
       sel.innerHTML = "";
