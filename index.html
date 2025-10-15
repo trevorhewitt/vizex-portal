@@ -5,10 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>RESEARCHER USE ONLY — parameters input</title>
   <link rel="stylesheet" href="assets/style.css" />
-  <!-- Keep defer to preserve your normal load order -->
   <script src="assets/util.js" defer></script>
   <style>
-    /* Tiny helper styles for clarity */
     .note { font-size: 12px; opacity: .8; }
     .pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; line-height:18px; }
     .pill.auto { background:#e8f5e9; color:#1b5e20; }
@@ -54,7 +52,6 @@
               <span id="orderModePill" class="pill auto" title="Auto-filled from session">AUTO</span>
               <button id="resetOrderBtn" class="btn-ghost" type="button" title="Reset to session default">Reset</button>
             </div>
-            <div class="note">String of condition characters. If you edit this field, it switches to <b>MANUAL</b> and won’t be overwritten by session changes.</div>
           </label>
 
           <label>
@@ -80,7 +77,6 @@
     </div>
   </div>
 
-  <!-- Verbose diagnostics panel -->
   <details style="margin:16px;">
     <summary>Diagnostics (click to expand)</summary>
     <div id="diag" class="diag" aria-live="polite"></div>
@@ -90,7 +86,6 @@
     /***********************
      * CONFIG + FALLBACKS  *
      ***********************/
-    // Fallback SESSIONS (used only if VE.SESSIONS is missing)
     const FALLBACK_SESSIONS = [
       ["Friday October 17th at 9:20",  "202510170920"],
       ["Friday October 17th at 11:00", "202510171100"],
@@ -110,7 +105,6 @@
       ["Friday October 24th at 17:40", "202510241740"],
     ];
 
-    // Session → default trial-order mapping
     const SESSION_ORDERS = {
       "202510170920": "D72B2XC4534AX566311",
       "202510171100": "D42C1X166B53X253A74",
@@ -147,10 +141,6 @@
     /***********************
      * READINESS HANDLER   *
      ***********************/
-    /**
-     * Waits for VE namespace and VE.SESSIONS to be available (from util.js),
-     * with fallback after timeout. Prints step-by-step diagnostics.
-     */
     function waitForVE(maxMs = 4000, stepMs = 50) {
       return new Promise((resolve) => {
         const start = performance.now();
@@ -180,11 +170,10 @@
       const hasVE = !!window.VE;
       log("VE present on window?", hasVE);
 
-      // Read query params safely (fallback if VE.parseParams not ready)
+      // Read params; ignore empty strings later
       const params = (hasVE && typeof VE.parseParams === "function")
         ? VE.parseParams()
         : (() => {
-            // Simple fallback parser
             const o = {};
             location.search.replace(/^\?/, "").split("&").filter(Boolean).forEach(kv => {
               const [k, v=""] = kv.split("=");
@@ -195,22 +184,21 @@
 
       log("Query params:", params);
 
-      // Grab elements
-      const sel         = document.getElementById("sessionSelect");
-      const nameInput   = document.getElementById("nameInput");
-      const codeInput   = document.getElementById("codeInput");
-      const orderInput  = document.getElementById("orderInput");
-      const indexInput  = document.getElementById("indexInput");
-      const modeSelect  = document.getElementById("modeSelect");
-      const nextBtn     = document.getElementById("nextBtn");
-      const sessionNote = document.getElementById("sessionNote");
+      // Elements
+      const sel           = document.getElementById("sessionSelect");
+      const nameInput     = document.getElementById("nameInput");
+      const codeInput     = document.getElementById("codeInput");
+      const orderInput    = document.getElementById("orderInput");
+      const indexInput    = document.getElementById("indexInput");
+      const modeSelect    = document.getElementById("modeSelect");
+      const nextBtn       = document.getElementById("nextBtn");
+      const sessionNote   = document.getElementById("sessionNote");
       const orderModePill = document.getElementById("orderModePill");
       const resetOrderBtn = document.getElementById("resetOrderBtn");
 
-      // MANUAL/AUTO state
+      // Manual/Auto state (default AUTO)
       let manualOrderOverride = false;
 
-      // Helper: set pill UI
       function setOrderPill(manual) {
         manualOrderOverride = !!manual;
         orderModePill.textContent = manual ? "MANUAL" : "AUTO";
@@ -218,7 +206,6 @@
         orderModePill.classList.toggle("auto", !manual);
       }
 
-      // Helper: apply default order if not manual
       function applyDefaultOrderIfAllowed() {
         const sessionCode = sel.value;
         const defaultOrder = SESSION_ORDERS[sessionCode] || "";
@@ -231,7 +218,6 @@
         }
       }
 
-      // Wait for VE.SESSIONS or fallback
       const ready = await waitForVE();
       log("Sessions source:", ready.source, "| count:", ready.sessions.length);
       sessionNote.textContent = `Source: ${ready.source} (count: ${ready.sessions.length})`;
@@ -245,25 +231,32 @@
       });
       log("Session select populated.");
 
-      // Prefill from query (if any)
-      if (params.s) { sel.value = params.s; log("Prefill: s =", params.s); }
-      if (params.n) { nameInput.value = params.n; log("Prefill: n =", params.n); }
-      if (params.p) { codeInput.value = params.p; log("Prefill: p =", params.p); }
-      if (params.i) { indexInput.value = params.i; log("Prefill: i =", params.i); }
-      if (params.m) { modeSelect.value = params.m; log("Prefill: m =", params.m); }
+      // Prefill (ignore blank strings)
+      if (params.s && params.s.trim() !== "") { sel.value = params.s; log("Prefill: s =", params.s); }
+      if (params.n && params.n.trim() !== "") { nameInput.value = params.n; log("Prefill: n =", params.n); }
+      if (params.p && params.p.trim() !== "") { codeInput.value = params.p; log("Prefill: p =", params.p); }
+      if (params.i && params.i.trim() !== "") { indexInput.value = params.i; log("Prefill: i =", params.i); }
+      if (params.m && params.m.trim() !== "") { modeSelect.value = params.m; log("Prefill: m =", params.m); }
 
-      // Trial order handling:
-      // If t provided → MANUAL, else AUTO from session default
-      if (typeof params.t === "string") {
-        orderInput.value = params.t;
-        setOrderPill(true);
-        log("Prefill: t (manual override) =", params.t);
-      } else {
-        setOrderPill(false);
-        applyDefaultOrderIfAllowed();
+      // If session is still unset (empty param), default to first option
+      if (!sel.value && sel.options.length > 0) {
+        sel.value = sel.options[0].value;
+        log("No session in query; defaulting to first session:", sel.value);
       }
 
-      // Change handlers
+      // INITIAL MODE: AUTO unless t is a non-empty string
+      const hasManualT = (typeof params.t === "string" && params.t.trim().length > 0);
+      if (hasManualT) {
+        orderInput.value = params.t.trim();
+        setOrderPill(true); // MANUAL
+        log("Prefill: t (manual override) =", params.t.trim());
+      } else {
+        setOrderPill(false); // AUTO
+        log("No non-empty t provided; starting in AUTO mode.");
+        applyDefaultOrderIfAllowed(); // auto-fill from selected session
+      }
+
+      // Handlers
       sel.addEventListener("change", () => {
         log("Session changed to", sel.value);
         applyDefaultOrderIfAllowed();
@@ -284,7 +277,6 @@
         applyDefaultOrderIfAllowed();
       });
 
-      // Next navigation
       nextBtn.addEventListener("click", () => {
         const nextParams = {
           p: (codeInput.value || "").trim(),
@@ -299,7 +291,6 @@
         if (window.VE && typeof VE.goto === "function") {
           VE.goto("param-check.html", nextParams);
         } else {
-          // Safe fallback so you can still observe the built URL if VE.goto is unavailable
           const qs = Object.entries(nextParams)
             .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join("&");
           const url = `param-check.html?${qs}`;
@@ -308,7 +299,6 @@
         }
       });
 
-      // Optional dev footer
       if (window.VE && typeof VE.renderDevFooter === "function") {
         log("Rendering dev footer…");
         VE.renderDevFooter(params, "index");
