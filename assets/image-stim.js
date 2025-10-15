@@ -8,16 +8,16 @@
   // Placeholder lists — replace with your real URLs
   const IMAGE_LISTS = {
     A: [
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Woman_teaching_geometry.jpg/800px-Woman_teaching_geometry.jpg",
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_mEjWa0RPSj0tmAT",
     ],
     B: [
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Woman_teaching_geometry.jpg/800px-Woman_teaching_geometry.jpg",
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_ec1NcgaIPXJB8Ew",
     ],
     C: [
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Woman_teaching_geometry.jpg/800px-Woman_teaching_geometry.jpg",
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_L1d5zOQh26lEIO1",
     ],
     D: [
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Woman_teaching_geometry.jpg/800px-Woman_teaching_geometry.jpg",
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_kaQ5mmGrgfjMEgF",
     ],
   };
   function pickForCode(code){
