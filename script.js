@@ -818,7 +818,14 @@ class DrawingApp {
     if (!trialT && typeof params.t === "string" && params.t.length > idx) trialT = params.t.charAt(idx);
     if (!trialT) trialT = "UNK";
 
-    const baseName = `saveTime_${saveTime}__sessionTime_${sessionTime}__participant_${participant}__trialN_${trialN}__trialT_${trialT}`;
+    // Construct baseName without altering trialT
+    const ixStr = (["A", "B", "C", "D"].includes(trialT))
+    ? ((params && typeof params.ix !== "undefined") ? String(params.ix).padStart(2, "0") : "nn")
+    : "";
+
+    const trialTSuffix = ixStr ? `${trialT}${ixStr}` : trialT;
+
+    const baseName = `saveTime_${saveTime}__sessionTime_${sessionTime}__participant_${participant}__trialN_${trialN}__trialT_${trialTSuffix}`;
 
     const toBlobAsync = (canvas, type="image/png", quality=0.92) => new Promise((res, rej)=>{
         try { canvas.toBlob(b => b ? res(b) : rej(new Error("toBlob returned null")), type, quality); }

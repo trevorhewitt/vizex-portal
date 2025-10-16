@@ -8,13 +8,18 @@
   // Placeholder lists — replace with your real URLs
   const IMAGE_LISTS = {
     A: [
-      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_mEjWa0RPSj0tmAT",
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_BG8TQnwc9YQj1uM",
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_lqE07IDBxIftj0m",
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_AwVe3FwpXPCw0Ly"
     ],
     B: [
-      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_ec1NcgaIPXJB8Ew",
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_71NGBohCsOcLlFQ",
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_Xp9iXEv1JqYBK7m",
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_ZcSPLvno0VUxfDg",
     ],
     C: [
-      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_L1d5zOQh26lEIO1",
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_xZqLuNYJlyXb1UW",
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_K4BBRStGlFNZZzR"
     ],
     D: [
       "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_kaQ5mmGrgfjMEgF",
