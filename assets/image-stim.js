@@ -8,18 +8,56 @@
   // Placeholder lists — replace with your real URLs
   const IMAGE_LISTS = {
     A: [
-      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_BG8TQnwc9YQj1uM",
-      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_lqE07IDBxIftj0m",
-      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_AwVe3FwpXPCw0Ly"
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_p6hJEzjLdEWzqaH", // 01 A00
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_9cJlL4ZaxpTQAO0", // 02 A01
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_kqpAErDSmcKog5y", // 03 A02
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_iyb8CY1GkaNwiSz", // 04 A03
+      //"https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_mJD6thqAueM5OaD", // 05 
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_5wu8Yjz8l6C6sP5", // 06 A04
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_4v1RpyLNLNucTnW", // 07 A05
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_7xlcSTIoDjwx1jP", // 08 A06
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_gbwXKbeAAoNUuaH", // 09 A07
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_PSovrKHfDi833oj", // 10 A08
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_Wcz9QcndxIrnVv8", // 11 A09
+      //"https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_3kAAsDxFJqzp0TL", // 12
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_Pd6HIWmlQTqgEts", // 13 A10
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_GzNJWn9P3kUi96R", // 14 A11
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_JYt0eHLhJ6xKY9M", // 15 A12
     ],
+
     B: [
-      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_71NGBohCsOcLlFQ",
-      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_Xp9iXEv1JqYBK7m",
-      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_ZcSPLvno0VUxfDg",
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_6HOpds0zQXBockQ", //16 B00
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_EChiDQpRMJOWlXl", //17 B01
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_m7iia72UkwSLKgr", //18 B02
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_h9RBSXgtDHipro3", //19 B03
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_yuy99IKxFrKkWTu", //20 B04
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_xc4iTLUZ0mNXS4M", //21 B05
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_avgRO45IbXaxNM3", //22 B06
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_qUzaCgj3NRr5y3G", //23 B07
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_5iajFqdhso2t7Vg", //24 B08
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_zLKQtqlBglYYFDj", //25 B09
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_VOITcLpFXaLryvW", //26 B10
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_nkiGFCR2tkMWJJb", //27 B11
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_oAP8xSdDZVU7n6N", //28 B12
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_g5bkuEdpMIPV02M", //29 B13
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_mOTIEe8SsvyIu8I" //30 B14
     ],
     C: [
-      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_xZqLuNYJlyXb1UW",
-      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_K4BBRStGlFNZZzR"
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_U4x25wdhnuZLF7E", //31 C00
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_OvnYyM0jxWP26As", //32 C01
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_qpn2ios3SxlD6rx", //33 C02
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_Pc7KWtuUx30Bwm0", //34 C03
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_biYVUrs67tOR921", //35 C04 
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_wAKoi7UXnSpgTKW", //36 C05
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_j6iHXhtjNZ4m04v", //37 C06
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_C4b5xR49yF1MiaK", //39 C07
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_kABtIqrGrUImYPU", //40 C08
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_aftUFDk3R4Ph9Ho", //41 C09 
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_yEHZit3ezXFbWJ5", //42 C10
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_TviCPwL5xxe39SC", //43 C11
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_hVosjozGI3MjxEt", //44 C12
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_rQUTQgXkd0rPnW4", //45 C13
+      "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_H3gN8MNNmBEt7u6", //45 C14
     ],
     D: [
       "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_kaQ5mmGrgfjMEgF",
