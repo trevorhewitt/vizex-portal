@@ -24,7 +24,7 @@
     const list = IMAGE_LISTS[code] || IMAGE_LISTS.A || [];
     if (!list.length) return null;
     const idx = Math.floor(Math.random() * list.length);
-    return { src: list[idx], alt: `Stimulus ${code} placeholder` };
+    return { src: list[idx], alt: `Stimulus ${code} placeholder`, idx };
   }
   function preload(src){
     return new Promise((resolve, reject)=>{
@@ -96,7 +96,8 @@
 
     // ===== Stage 1 =====
     root.innerHTML = htmlStage1();
-    VE.renderDevFooter(params, `image-stim: chosen=${code}`);
+    VE.renderDevFooter(params, `image-stim: chosen=${code}, ix=${chosen ? chosen.idx : "n/a"}`);
+
 
     const startBtn = document.getElementById("startStimBtn");
     startBtn.addEventListener("click", async ()=>{
@@ -130,6 +131,9 @@
       if (!chosen || preloadErr) {
         // Fail-safe: just advance (avoids hanging)
         const r = VE.nextRoute("image-stim", params);
+        if (chosen && Number.isInteger(chosen.idx)) {
+          r.params = { ...r.params, ix: String(chosen.idx) };
+        }
         VE.goto(r.page, r.params);
         return;
       }
@@ -146,6 +150,9 @@
       timers.push(setTimeout(()=> { if (imgEl) imgEl.style.opacity = "0"; }, fadeAt));
       timers.push(setTimeout(()=> {
         const r = VE.nextRoute("image-stim", params);
+        if (chosen && Number.isInteger(chosen.idx)) {
+          r.params = { ...r.params, ix: String(chosen.idx) };
+        }
         VE.goto(r.page, r.params);
       }, endAt));
 
