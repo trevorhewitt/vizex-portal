@@ -26,6 +26,7 @@
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       const params = VE.parseParams();
+      VE.sendEvent(params); // Log to Firebase when entering waiting state
       // Minimal, final-state render (no placeholder swap)
       document.getElementById("waitMessage").textContent = VE.computeNextTrialMessage(params);
 

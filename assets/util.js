@@ -93,9 +93,33 @@ function renderDevFooter(params, lastMessageText=""){
   `;
   (document.querySelector(".inner")||document.body).appendChild(footer);
 }
-function sendEventSimulated(message){
-  console.log("[Simulated Firebase] Sent message:", message);
-  return { ok:true, message };
+function sendEvent(message){
+  if (typeof firebase !== "undefined" && firebase.apps && firebase.apps.length > 0 && firebase.database) {
+    try {
+      // Use participant code if available, otherwise fallback to 'unknown'
+      const participantId = message.p || "unknown";
+      const timestamp = new Date().toISOString();
+      // Write to a participant-specific path
+      firebase.database().ref("participants/" + participantId).set({
+        ...message,
+        timestamp
+      });
+      // Optionally, add to a notifications list
+      firebase.database().ref("notifications").push({
+        participant: participantId,
+        ...message,
+        timestamp
+      });
+      console.log("[Firebase] Sent message:", message);
+      return { ok:true, message };
+    } catch (e) {
+      console.error("[Firebase] Error sending message:", e);
+      return { ok:false, error: e, message };
+    }
+  } else {
+    console.log("[Simulated Firebase] Sent message:", message);
+    return { ok:true, message };
+  }
 }
 function esc(s){
   return String(s).replace(/[&<>"']/g, c => (
