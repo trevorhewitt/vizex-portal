@@ -2,7 +2,7 @@
 // Requires assets/util.js (window.VE)
 
 (function(){
-  const FIXATION_SRC = "https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/Eo_circle_green_letter-x.svg/768px-Eo_circle_green_letter-x.svg.png?20200417132944";
+  const FIXATION_SRC = "https://universityofsussex.eu.qualtrics.com/CP/Graphic.php?IM=IM_MrKpitxMPAZcAAw";
   const FIXATION_ALT = "Fixation cross placeholder";
 
   // Placeholder lists — replace with your real URLs

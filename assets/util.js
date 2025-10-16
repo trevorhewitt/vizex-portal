@@ -39,6 +39,7 @@ function parseParams(){
     s: sp.get("s") ?? "",
     t: sp.get("t") ?? "",
     i: sp.get("i") ?? "0",
+    ix: sp.get("ix") ?? "",  // image index for image trials (optional)
     m: sp.get("m") ?? "0"
   };
 }
@@ -49,6 +50,9 @@ function buildQuery(params){
   if (params.s) sp.set("s", params.s);
   if (typeof params.t === "string") sp.set("t", params.t);
   sp.set("i", String(params.i ?? "0"));
+  if (params.ix !== undefined && params.ix !== null && String(params.ix) !== "") {
+    sp.set("ix", String(params.ix));
+  }
   const base = sp.toString();
   const mode = `m=${(params.m==="1"||params.m===1)?"1":"0"}`;
   return base ? `${base}&${mode}` : mode;
@@ -81,6 +85,7 @@ function renderDevFooter(params, lastMessageText=""){
         s: ${params.s||"(empty)"} ${display?`— ${display}`:""}<br/>
         t: ${params.t||"(empty)"}<br/>
         i: ${params.i||"0"}<br/>
+        ix: ${params.ix!==undefined && params.ix!=="" ? params.ix : "(none)"}<br/>
         m: ${params.m}
       </span>
     </div>
@@ -157,6 +162,8 @@ function nextRoute(currentPage, params){
     case "drawing": return atLast ? {page:"end.html", params} : {page:"wait.html", params};
     case "wait": {
       const nextParams = {...params, i:String(idx+1)};
+      // Clear any prior image index; next trial will set its own if needed.
+      delete nextParams.ix;
       const nxtInfo = getCurrentTrialInfo(nextParams).info;
       if (!nxtInfo) return { page:"end.html", params: nextParams };
       return isStartOfBlock(nxtInfo)
