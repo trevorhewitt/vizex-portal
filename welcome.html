@@ -47,7 +47,7 @@
       VE.setupNavVisibility(params, { allowBack: false });
 
       // Dev footer + simulated message
-      const res = VE.sendEventSimulated("experiment setup");
+      const res = VE.sendEvent("experiment setup");
       VE.renderDevFooter(params, res && res.ok ? "experiment setup" : "(failed)");
     });
   </script>

@@ -17,6 +17,68 @@ const SESSIONS = [
   ["Friday October 24th at 16:00", "202510241600"],
   ["Friday October 24th at 17:40", "202510241740"],
 ];
+
+// Firebase config and initialization
+
+(async function loadFirebase() {
+  // Helper to load a script and wait until it’s ready
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = resolve;
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+
+  // Load Firebase libraries sequentially
+  await loadScript("https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js");
+  await loadScript("https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js");
+
+  // Wait until the global variable exists
+  if (!window.firebase) {
+    console.error("Firebase failed to load");
+    return;
+  }
+
+  // --- Initialize Firebase ---
+  const firebaseConfig = {
+      apiKey: "AIzaSyBoKMhXWiu-Ryc2d9_WesXx8SkTL5ee7ag",
+  authDomain: "iri-experiment-notifications.firebaseapp.com",
+  databaseURL: "https://iri-experiment-notifications-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "iri-experiment-notifications",
+  storageBucket: "iri-experiment-notifications.firebasestorage.app",
+  messagingSenderId: "380971249257",
+  appId: "1:380971249257:web:bbf0250ce9e3a93c1bfcf8",
+  measurementId: "G-HMN3BGBMBY"
+  };
+
+  // Initialize the Firebase app
+  const app = firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  // Expose to other parts of your code if needed
+  window.firebaseApp = app;
+  window.firebaseDB = db;
+
+  console.log("Firebase initialized inside util.js");
+})();
+
+// Helper to wait for Firebase to be ready before sending events
+function onFirebaseReady(callback) {
+  if (window.firebaseApp && window.firebaseDB) {
+    callback();
+  } else {
+    const interval = setInterval(() => {
+      if (window.firebaseApp && window.firebaseDB) {
+        clearInterval(interval);
+        callback();
+      }
+    }, 50);
+  }
+}
+
 function sessionCodeToDisplay(code){
   const f = SESSIONS.find(([,c])=>c===code);
   return f ? f[0] : "";
@@ -93,34 +155,51 @@ function renderDevFooter(params, lastMessageText=""){
   `;
   (document.querySelector(".inner")||document.body).appendChild(footer);
 }
-function sendEvent(message){
-  if (typeof firebase !== "undefined" && firebase.apps && firebase.apps.length > 0 && firebase.database) {
-    try {
-      // Use participant code if available, otherwise fallback to 'unknown'
-      const participantId = message.p || "unknown";
-      const timestamp = new Date().toISOString();
-      // Write to a participant-specific path
-      firebase.database().ref("participants/" + participantId).set({
-        ...message,
-        timestamp
-      });
-      // Optionally, add to a notifications list
-      firebase.database().ref("notifications").push({
-        participant: participantId,
-        ...message,
-        timestamp
-      });
-      console.log("[Firebase] Sent message:", message);
-      return { ok:true, message };
-    } catch (e) {
-      console.error("[Firebase] Error sending message:", e);
-      return { ok:false, error: e, message };
-    }
-  } else {
-    console.log("[Simulated Firebase] Sent message:", message);
-    return { ok:true, message };
+
+function sendEvent(message) {
+  if (
+    typeof firebase === "undefined" ||
+    !firebase.apps ||
+    firebase.apps.length === 0 ||
+    !firebase.database
+  ) {
+    // Firebase not available; do nothing
+    return;
+  }
+
+  // Ensure all params are present in the message
+  const params = parseParams();
+  const fullMessage = {
+    p: params.p,
+    n: params.n,
+    s: params.s,
+    t: params.t,
+    i: params.i,
+    m: params.m,
+    ...message // allow message to override if needed
+  };
+
+  const participantId = fullMessage.p || "unknown";
+  const timestamp = new Date().toISOString();
+  const messageWithTimestamp = { ...fullMessage, timestamp };
+
+  try {
+    // Write to participant-specific path
+    firebase.database().ref("participants/" + participantId).set(messageWithTimestamp);
+    // Add to notifications list
+    firebase.database().ref("notifications").push({
+      participant: participantId,
+      ...fullMessage,
+      timestamp
+    });
+    console.log("[Firebase] Sent message:", messageWithTimestamp);
+    return { ok: true, message: messageWithTimestamp };
+  } catch (e) {
+    console.error("[Firebase] Error sending message:", e);
+    return { ok: false, error: e, message: messageWithTimestamp };
   }
 }
+
 function esc(s){
   return String(s).replace(/[&<>"']/g, c => (
     {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]
@@ -258,7 +337,7 @@ window.VE = {
   // data
   SESSIONS, sessionCodeToDisplay,
   // params + nav
-  parseParams, buildQuery, goto, hasDev, setupNavVisibility, renderDevFooter, sendEventSimulated, esc,
+  parseParams, buildQuery, goto, hasDev, setupNavVisibility, renderDevFooter, sendEvent, esc,
   // plan
   splitIntoBlocks, flattenTrials, getPlan, isDigit, isImageChar, trialTypeFromCode, getCurrentTrialInfo,
   // routing

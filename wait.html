@@ -1,32 +1,34 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Wait</title>
-  <link rel="stylesheet" href="assets/style.css" />
-  <script src="assets/util.js" defer></script>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Wait</title>
+    <link rel="stylesheet" href="assets/style.css" />
+    <script src="assets/util.js" defer></script>
 </head>
 <body data-page="wait">
-  <div class="page">
-    <div class="content">
-      <div class="inner">
-        <div class="wait-wrap"><h1>WAIT</h1></div>
-        <p id="waitMessage"></p>
-      </div>
+    <div class="page">
+        <div class="content">
+            <div class="inner">
+                <div class="wait-wrap"><h1>WAIT</h1></div>
+                <p id="waitMessage"></p>
+            </div>
+        </div>
+        <div class="footer">
+            <div class="button-bar">
+                <button id="backBtn" class="secondary">Back</button>
+                <button id="nextBtn" class="primary">Next</button>
+            </div>
+        </div>
     </div>
-    <div class="footer">
-      <div class="button-bar">
-        <button id="backBtn" class="secondary">Back</button>
-        <button id="nextBtn" class="primary">Next</button>
-      </div>
-    </div>
-  </div>
 
-  <script>
+    <script>
     document.addEventListener("DOMContentLoaded", function () {
       const params = VE.parseParams();
-      VE.sendEvent(params); // Log to Firebase when entering waiting state
+      onFirebaseReady(() => {
+  VE.sendEvent(params);
+}); // Log to Firebase when entering waiting state
       // Minimal, final-state render (no placeholder swap)
       document.getElementById("waitMessage").textContent = VE.computeNextTrialMessage(params);
 
@@ -37,6 +39,6 @@
       // (Optional) Dev footer
       VE.renderDevFooter(params, "");
     });
-  </script>
+    </script>
 </body>
 </html>
