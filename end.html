@@ -3,100 +3,223 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>End — The Vision Experiment</title>
+  <title>Post-questions — The Vision Experiment</title>
   <link rel="stylesheet" href="assets/style.css" />
   <script src="assets/util.js" defer></script>
   <style>
-    /* Keep it very minimal; center is optional */
-    .end-wrap {
-      min-height: 60vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-align: left;
+    .q-wrap{ max-width: var(--maxWidth, 900px); margin: 0 auto; }
+    .intro{ margin-bottom: 16px; line-height: 1.4; }
+    .question{ margin: 20px 0 28px; padding: 16px; border-radius: 12px; background: #f6f6f6; }
+    .q-text{ margin: 0 0 12px; font-weight: 600; }
+    .scale{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .scale button{
+      padding: 12px 10px; border-radius: 10px; border: 2px solid #ccc; background: #fff;
+      font-size: 16px; line-height: 1.1; min-height: 56px;
     }
-
-    /* Invisible tap-target styling — looks like normal text */
-    .secret-tap {
-      color: inherit;
-      text-decoration: none;
-      cursor: default; /* do NOT look clickable */
-      -webkit-tap-highlight-color: transparent;
-      user-select: none;
-      -webkit-user-select: none;
-      -ms-user-select: none;
-    }
+    .scale button[aria-pressed="true"]{ border-color: var(--accent, #333); box-shadow: 0 0 0 2px rgba(0,0,0,0.08) inset; }
+    .hidden{ display: none !important; }
+    .footer .button-bar{ justify-content: center; }
+    #backBtn{ display: none !important; }
+    #nextBtn[disabled]{ opacity: 0.5; pointer-events: none; }
   </style>
 </head>
-<body data-page="end">
+<body data-page="postq">
   <div class="page">
     <div class="content">
       <div class="inner">
-        <div class="end-wrap">
-          <h1 id="endMessage">
-            You have now completed the 
-            <span class="secret-tap" data-key="experiment">experiment</span>, 
-            <span class="secret-tap" data-key="congratulations">congratulations</span>!
-            <br><br>
-            Thank you for taking the time to contribute to scientific research.
-            <br><br>
-            Please wait a moment for the rest of the participants to finish the experiment.
-          </h1>
+        <div class="q-wrap">
+          <div class="intro">
+            <h1>Just two quick questions</h1>
+            <p>
+              Please answer both questions below. Choose <strong>“sure”</strong> if you’re confident, or
+              <strong>“guess”</strong> if you’re not sure — but <em>you must still answer even if you have to guess</em>.
+            </p>
+          </div>
+          <div id="questions"></div>
         </div>
       </div>
     </div>
 
     <div class="footer">
       <div class="button-bar">
-        <button id="backBtn" class="secondary">Back</button>
+        <button id="nextBtn" class="primary hidden" disabled>Next</button>
       </div>
     </div>
   </div>
 
   <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const params = VE.parseParams();
+  document.addEventListener("DOMContentLoaded", () => {
+    // ---- Params & VE wiring ----
+    const params = (window.VE && VE.parseParams) ? VE.parseParams() : {};
+    if (window.VE && VE.setupNavVisibility) VE.setupNavVisibility(params, { allowBack: false, allowNext: false });
+    if (window.VE && VE.renderDevFooter) {
+      const dev = VE.hasDev ? VE.hasDev(params) : false;
+      VE.renderDevFooter(params, dev ? "postq (dev)" : "");
+    }
 
-      // Only Back exists here; wire it
-      VE.bindNavForPage("end", params);
+    // ---- Cloudinary config ----
+    const CLOUD_NAME = "dlginribm";
+    const UPLOAD_PRESET_RAW = "unsigned_preset";
 
-      // Dev mode: show Back; Experiment mode: hide footer entirely
-      const dev = VE.hasDev(params);
-      VE.setupNavVisibility(params, { allowBack: dev });
+    async function postFormData(url, formData) {
+      const res = await fetch(url, { method: "POST", body: formData });
+      if (!res.ok) throw new Error(`Cloudinary network error ${res.status}`);
+      return res.json();
+    }
+    function uploadRawToCloudinary(blob, fileName) {
+      const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/raw/upload`;
+      const fd = new FormData();
+      fd.append("file", blob, fileName);
+      fd.append("upload_preset", UPLOAD_PRESET_RAW);
+      return postFormData(url, fd);
+    }
 
-      const footer = document.querySelector(".footer");
-      if (footer) footer.style.display = dev ? "" : "none";
+    // ---- Naming helpers ----
+    const pad2 = (n)=> String(n).padStart(2,"0");
+    function makeSaveStamp(){
+      const now = new Date();
+      return `${String(now.getFullYear()).slice(-2)}${pad2(now.getMonth()+1)}${pad2(now.getDate())}${pad2(now.getHours())}${pad2(now.getMinutes())}`;
+    }
+    const sessionTime = params.s || "";
+    const participant = params.p || "";
+    const saveTime = makeSaveStamp();
+    const trialN = "NA";
+    const trialT = "POSTQ";
+    const baseName = `saveTime_${saveTime}__sessionTime_${sessionTime}__participant_${participant}__trialN_${trialN}__trialT_${trialT}`;
+    const fileName = `${baseName}.json`;
 
-      // Optional dev footer
-      VE.renderDevFooter(params, dev ? "end (dev)" : "");
-
-      // -------- Secret reset sequence (tablet-friendly) --------
-      // Target sequence: tap "congratulations" 3×, then "experiment" 1×.
-      const HOME_URL = "https://trevorhewitt.github.io/vizex-portal/";
-      const sequence = ["congratulations", "congratulations", "congratulations", "experiment"];
-      let progress = 0;
-
-      const targets = document.querySelectorAll('.secret-tap');
-
-      function handleTap(e) {
-        const key = e.currentTarget.getAttribute('data-key');
-        if (key === sequence[progress]) {
-          progress += 1;
-          if (progress === sequence.length) {
-            progress = 0;
-            window.location.href = HOME_URL;
-          }
-        } else {
-          progress = (key === sequence[0]) ? 1 : 0;
-        }
-        e.preventDefault();
+    // ---- Questions (randomized) ----
+    const QUESTIONS = [
+      { id: "optical_illusion", text: "Do you think the images in this experiment contained optical illusions?" },
+      { id: "hallucination", text: "Do you think the lights used in this experiment induced any hallucinations?" }
+    ];
+    function shuffle(arr){
+      const a = arr.slice();
+      for (let i=a.length-1;i>0;i--){
+        const j = Math.floor(Math.random()* (i+1));
+        [a[i], a[j]] = [a[j], a[i]];
       }
+      return a;
+    }
+    const order = shuffle(QUESTIONS);
 
-      targets.forEach(el => {
-        el.addEventListener('touchend', handleTap, { passive: false });
-        el.addEventListener('click', handleTap);
+    // ---- Scale options ----
+    const OPTIONS = [
+      { value: "yes_sure",  label: "yes (sure)"  },
+      { value: "yes_guess", label: "yes (guess)" },
+      { value: "no_guess",  label: "no (guess)"  },
+      { value: "no_sure",   label: "no (sure)"   },
+    ];
+
+    // ---- Render ----
+    const container = document.getElementById("questions");
+    const answers = {}; // id -> {value,label}
+    const answeredSet = new Set();
+    const nextBtn = document.getElementById("nextBtn");
+
+    function renderQuestion(q){
+      const wrap = document.createElement("div");
+      wrap.className = "question";
+      wrap.setAttribute("data-qid", q.id);
+
+      const p = document.createElement("p");
+      p.className = "q-text";
+      p.textContent = q.text;
+      wrap.appendChild(p);
+
+      const scale = document.createElement("div");
+      scale.className = "scale";
+
+      OPTIONS.forEach(opt => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.setAttribute("data-val", opt.value);
+        btn.setAttribute("aria-pressed", "false");
+        btn.textContent = opt.label;
+        btn.addEventListener("click", () => {
+          scale.querySelectorAll("button[aria-pressed='true']").forEach(b => b.setAttribute("aria-pressed","false"));
+          btn.setAttribute("aria-pressed", "true");
+          answers[q.id] = { value: opt.value, label: opt.label };
+          answeredSet.add(q.id);
+          updateNextState();
+        });
+        scale.appendChild(btn);
       });
+
+      wrap.appendChild(scale);
+      return wrap;
+    }
+
+    function updateNextState(){
+      const allAnswered = QUESTIONS.every(q => answeredSet.has(q.id));
+      if (allAnswered) {
+        nextBtn.classList.remove("hidden");
+        nextBtn.disabled = false;
+      } else {
+        nextBtn.disabled = true;
+        nextBtn.classList.add("hidden");
+      }
+    }
+
+    shuffle(QUESTIONS).forEach(() => {}); // no-op to avoid linter; using 'order' below
+    order.forEach(q => container.appendChild(renderQuestion(q)));
+    updateNextState();
+
+    // ---- JSON payload ----
+    function buildPayload(){
+      const nowIso = new Date().toISOString();
+      return {
+        meta: {
+          page: "postq",
+          saveTimeYYMMDDHHMM: saveTime,
+          savedAtISO: nowIso,
+          sessionTime,
+          participant,
+          fileBaseName: baseName,
+          fileName,
+          order: order.map(q => q.id)
+        },
+        responses: order.map(q => ({
+          id: q.id,
+          question: q.text,
+          answer_value: answers[q.id]?.value || null,
+          answer_label: answers[q.id]?.label || null
+        }))
+      };
+    }
+
+    // ---- Navigation helper ----
+    function navigateNext(){
+      try {
+        if (window.VE && typeof VE.goNext === "function") { VE.goNext(params); return; }
+      } catch(e){}
+      const nextParam = (params && typeof params.n === "string" && params.n) ? params.n : "";
+      if (nextParam) {
+        try { window.location.href = decodeURIComponent(nextParam); return; }
+        catch(e){ window.location.href = nextParam; return; }
+      }
+      window.location.href = "https://trevorhewitt.github.io/vizex-portal/end_2.html";
+    }
+
+    // ---- Next: upload JSON then navigate ----
+    nextBtn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      nextBtn.disabled = true;
+      nextBtn.textContent = "Saving…";
+      try {
+        const payload = buildPayload();
+        const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
+        await uploadRawToCloudinary(blob, fileName);
+        nextBtn.textContent = "Saved. Continuing…";
+        navigateNext();
+      } catch (err) {
+        console.error(err);
+        nextBtn.disabled = false;
+        nextBtn.textContent = "Retry Save";
+        alert("Network problem saving your answers. Please check connection and tap again.");
+      }
     });
+  });
   </script>
 </body>
 </html>

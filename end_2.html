@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>End — The Vision Experiment</title>
+  <link rel="stylesheet" href="assets/style.css" />
+  <script src="assets/util.js" defer></script>
+  <style>
+    /* Keep it very minimal; center is optional */
+    .end-wrap {
+      min-height: 60vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: left;
+    }
+
+    /* Invisible tap-target styling — looks like normal text */
+    .secret-tap {
+      color: inherit;
+      text-decoration: none;
+      cursor: default; /* do NOT look clickable */
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+      -ms-user-select: none;
+    }
+  </style>
+</head>
+<body data-page="end">
+  <div class="page">
+    <div class="content">
+      <div class="inner">
+        <div class="end-wrap">
+          <h1 id="endMessage">
+            You have now completed the 
+            <span class="secret-tap" data-key="experiment">experiment</span>, 
+            <span class="secret-tap" data-key="congratulations">congratulations</span>!
+            <br><br>
+            Thank you for taking the time to contribute to scientific research.
+            <br><br>
+            Please wait a moment for the rest of the participants to finish the experiment.
+          </h1>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div class="button-bar">
+        <button id="backBtn" class="secondary">Back</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const params = VE.parseParams();
+
+      // Only Back exists here; wire it
+      VE.bindNavForPage("end", params);
+
+      // Dev mode: show Back; Experiment mode: hide footer entirely
+      const dev = VE.hasDev(params);
+      VE.setupNavVisibility(params, { allowBack: dev });
+
+      const footer = document.querySelector(".footer");
+      if (footer) footer.style.display = dev ? "" : "none";
+
+      // Optional dev footer
+      VE.renderDevFooter(params, dev ? "end (dev)" : "");
+
+      // -------- Secret reset sequence (tablet-friendly) --------
+      // Target sequence: tap "congratulations" 3×, then "experiment" 1×.
+      const HOME_URL = "https://trevorhewitt.github.io/vizex-portal/";
+      const sequence = ["congratulations", "congratulations", "congratulations", "experiment"];
+      let progress = 0;
+
+      const targets = document.querySelectorAll('.secret-tap');
+
+      function handleTap(e) {
+        const key = e.currentTarget.getAttribute('data-key');
+        if (key === sequence[progress]) {
+          progress += 1;
+          if (progress === sequence.length) {
+            progress = 0;
+            window.location.href = HOME_URL;
+          }
+        } else {
+          progress = (key === sequence[0]) ? 1 : 0;
+        }
+        e.preventDefault();
+      }
+
+      targets.forEach(el => {
+        el.addEventListener('touchend', handleTap, { passive: false });
+        el.addEventListener('click', handleTap);
+      });
+    });
+  </script>
+</body>
+</html>
