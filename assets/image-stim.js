@@ -69,10 +69,18 @@
     const idx = Math.floor(Math.random() * list.length);
     return { src: list[idx], alt: `Stimulus ${code} placeholder`, idx };
   }
-  function preload(src){
+  function preloadAndDecode(src){
     return new Promise((resolve, reject)=>{
       const img = new Image();
-      img.onload = ()=> resolve(true);
+      img.onload = async ()=>{
+        try {
+          // Ensure it’s decoded (prevents “first-frame” delay on show)
+          if (img.decode) { await img.decode(); }
+        } catch(_) {
+          // Some browsers throw if already decoded — ignore.
+        }
+        resolve(true);
+      };
       img.onerror = ()=> reject(new Error("image failed to load: " + src));
       img.src = src;
     });
@@ -131,8 +139,10 @@
     let imageReady = false;
     let preloadErr = null;
 
+    const fixReady = preloadAndDecode(FIXATION_SRC);   // NEW: fixation preloading
+
     if (chosen) {
-      preload(chosen.src)
+      preloadAndDecode(chosen.src)
         .then(()=> { imageReady = true; })
         .catch(err => { preloadErr = err; });
     }
@@ -144,6 +154,8 @@
 
     const startBtn = document.getElementById("startStimBtn");
     startBtn.addEventListener("click", async ()=>{
+      // Make sure fixation is ready to paint
+      try { await fixReady; } catch(_) {}
       // ===== Stage 2 (fixation) =====
       root.innerHTML = htmlStage2();
 
@@ -171,21 +183,13 @@
       // => chosen may fail to render; we’ll fall back below.
 
       // ===== Stage 3 (stimulus) =====
-      if (!chosen || preloadErr) {
-        // Fail-safe: just advance (avoids hanging)
-        const r = VE.nextRoute("image-stim", params);
-        if (chosen && Number.isInteger(chosen.idx)) {
-          r.params = { ...r.params, ix: String(chosen.idx) };
-        }
-        VE.goto(r.page, r.params);
-        return;
-      }
-
       root.innerHTML = htmlStage3(chosen);
       const imgEl = document.getElementById("stimImg");
 
-      // Exact 20s on-screen for the stimulus:
-      // 0–17s visible; 17–20s fade; at 20s -> auto-advance
+      // Make absolutely sure it’s decoded & painted before we start timing
+      try { if (imgEl.decode) { await imgEl.decode(); } } catch(_) {}
+      await new Promise(r => requestAnimationFrame(()=> requestAnimationFrame(r)));
+
       const fadeAt = 17000;
       const endAt  = 20000;
 
