@@ -189,17 +189,9 @@
     }
 
     // ---- Navigation helper ----
-    function navigateNext(){
-      try {
-        if (window.VE && typeof VE.goNext === "function") { VE.goNext(params); return; }
-      } catch(e){}
-      const nextParam = (params && typeof params.n === "string" && params.n) ? params.n : "";
-      if (nextParam) {
-        try { window.location.href = decodeURIComponent(nextParam); return; }
-        catch(e){ window.location.href = nextParam; return; }
-      }
-      window.location.href = "https://trevorhewitt.github.io/vizex-portal/end_2";
-    }
+  function navigateNext(){
+    window.location.href = "https://trevorhewitt.github.io/vizex-portal/end_2";
+  }
 
     // ---- Next: upload JSON then navigate ----
     nextBtn.addEventListener("click", async (e) => {
