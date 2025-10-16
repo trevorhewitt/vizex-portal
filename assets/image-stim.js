@@ -2,7 +2,7 @@
 // Requires assets/util.js (window.VE)
 
 (function(){
-  const FIXATION_SRC = "https://universityofsussex.eu.qualtrics.com/CP/Graphic.php?IM=IM_MrKpitxMPAZcAAw";
+  const FIXATION_SRC = "https://universityofsussex.eu.qualtrics.com/ControlPanel/Graphic.php?IM=IM_pfzTRKpsZhkhCEI";
   const FIXATION_ALT = "Fixation cross placeholder";
 
   // Placeholder lists — replace with your real URLs
