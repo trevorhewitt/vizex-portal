@@ -1,21 +1,15 @@
 /* ===================== SESSIONS ===================== */
 const SESSIONS = [
-  ["Friday October 17th at 9:20",  "202510170920"],
-  ["Friday October 17th at 11:00", "202510171100"],
-  ["Friday October 17th at 12:40", "202510171240"],
-  ["Friday October 17th at 14:20", "202510171420"],
-  ["Friday October 17th at 16:00", "202510171600"],
-  ["Saturday October 18th at 9:20","202510180920"],
-  ["Saturday October 18th at 11:00","202510181100"],
-  ["Saturday October 18th at 12:40","202510181240"],
-  ["Saturday October 18th at 14:20","202510181420"],
-  ["Saturday October 18th at 16:00","202510181600"],
-  ["Friday October 24th at 9:20",  "202510240920"],
-  ["Friday October 24th at 11:00", "202510241100"],
-  ["Friday October 24th at 12:40", "202510241240"],
-  ["Friday October 24th at 14:20", "202510241420"],
-  ["Friday October 24th at 16:00", "202510241600"],
-  ["Friday October 24th at 17:40", "202510241740"],
+    ["XXX SET SESSSION XXX", "000000000000"],
+    ["Friday October 24th at 9:20",  "202510240920"],
+    ["Friday October 24th at 11:10", "202510241110"],
+    ["Friday October 24th at 13:00", "202510241300"],
+    ["Friday October 24th at 15:00", "202510241500"],
+    ["Friday October 24th at 17:00", "202510241700"],
+    ["Saturday October 25th at 12:00", "202510251200"],
+    ["Saturday October 25th at 15:00", "202510251500"],
+    ["Sunday October 26th at 13:00", "202510261300"],
+    ["Sunday October 26th at 16:00", "202510261600"],
 ];
 
 // Firebase config and initialization
