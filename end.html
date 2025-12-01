@@ -49,12 +49,26 @@
 
   <script>
   document.addEventListener("DOMContentLoaded", () => {
+    // Toggle this to enable/disable this page's functionality
+    const POSTQ_ENABLED = false; // set to true to re-enable questions + upload
+
     // ---- Params & VE wiring ----
     const params = (window.VE && VE.parseParams) ? VE.parseParams() : {};
     if (window.VE && VE.setupNavVisibility) VE.setupNavVisibility(params, { allowBack: false, allowNext: false });
     if (window.VE && VE.renderDevFooter) {
       const dev = VE.hasDev ? VE.hasDev(params) : false;
       VE.renderDevFooter(params, dev ? "postq (dev)" : "");
+    }
+
+    // ---- Navigation helper ----
+    function navigateNext(){
+      window.location.href = "https://trevorhewitt.github.io/vizex-portal/end_2";
+    }
+
+    // If disabled, just redirect and skip the rest
+    if (!POSTQ_ENABLED) {
+      navigateNext();
+      return;
     }
 
     // ---- Cloudinary config ----
@@ -187,11 +201,6 @@
         }))
       };
     }
-
-    // ---- Navigation helper ----
-  function navigateNext(){
-    window.location.href = "https://trevorhewitt.github.io/vizex-portal/end_2";
-  }
 
     // ---- Next: upload JSON then navigate ----
     nextBtn.addEventListener("click", async (e) => {
